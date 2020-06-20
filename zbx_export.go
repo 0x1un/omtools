@@ -3,7 +3,6 @@ package zbxtools
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"zbxtools/go-zabbix"
 )
 
@@ -32,7 +31,7 @@ func (z *ZbxTool) ExportAnyHosts(path, format string) error {
 	}
 
 	if len(hosts) == 0 {
-		log.Fatal("No Hosts found")
+		return fmt.Errorf("No Hosts found")
 	}
 	hostIDS := make([]string, 0)
 	for _, host := range hosts {
