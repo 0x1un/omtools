@@ -26,7 +26,7 @@ func (z *ZbxTool) ExportAnyHosts(path, format string) error {
 		return err
 	}
 	hostIDS := make([]string, 0)
-	for hostid, _ := range hosts {
+	for hostid := range hosts {
 		hostIDS = append(hostIDS, hostid)
 	}
 
