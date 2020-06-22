@@ -21,29 +21,38 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func cfgcmd(cmd *cobra.Command, args []string) {
+
+	status, _ := cmd.Flags().GetString("export")
+	if status == "" {
+		if err := cmd.Help(); err != nil {
+			panic(err)
+		}
+		return
+	}
+	fileExt := path.Ext(status)
+	err := zbx.ExportAnyHosts(status, func(s string) string {
+		switch s {
+		case ".xml":
+			return "xml"
+		default:
+			return "json"
+		}
+	}(fileExt))
+	if err != nil {
+		panic(err)
+	}
+}
+
 // cfgCmd represents the cfg command
 var cfgCmd = &cobra.Command{
 	Use:   "cfg",
 	Short: "zbx配置导入导出",
 	Long:  `你可以使用此命令导入或者导出zabbix配置，诸如：流量图、主机、主机群组等等`,
-	Run: func(cmd *cobra.Command, args []string) {
-		status, _ := cmd.Flags().GetString("export")
-		fileExt := path.Ext(status)
-		err := zbx.ExportAnyHosts(status, func(s string) string {
-			switch s {
-			case ".xml":
-				return "xml"
-			default:
-				return "json"
-			}
-		}(fileExt))
-		if err != nil {
-			panic(err)
-		}
-	},
+	Run:   cfgcmd,
 }
 
 func init() {
 	rootCmd.AddCommand(cfgCmd)
-	cfgCmd.Flags().String("export", "zbx_exported.json", "export zabbix config")
+	cfgCmd.Flags().String("export", "", "export zabbix config")
 }
