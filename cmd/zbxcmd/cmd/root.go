@@ -28,7 +28,7 @@ import (
 
 var (
 	cfgFile string
-	zbx     = zbxtools.NewZbxTool("http://localhost/api_jsonrpc.php", "Admin", "zabbix")
+	zbx     *zbxtools.ZbxTool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -43,7 +43,8 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	// Run: func(cmd *cobra.Command, args []string) {
+	// },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -66,7 +67,18 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	args := os.Args
+	if len(args) == 1 {
+		err := rootCmd.Help()
+		if err != nil {
+			panic(err)
+		}
+	}
+	if os.Args[1] != "shell" {
+		zbx = zbxtools.NewZbxTool("http://localhost/api_jsonrpc.php", "Admin", "goodluck@123")
+	} else {
+		zbx = nil
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.
