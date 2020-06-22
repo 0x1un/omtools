@@ -1,7 +1,6 @@
 package zbxtools
 
 import (
-	"fmt"
 	"io/ioutil"
 	"zbxtools/go-zabbix"
 )
@@ -22,23 +21,13 @@ func NewZbxTool(url, username, password string) *ZbxTool {
 
 // ExportAnyHosts export any hosts
 func (z *ZbxTool) ExportAnyHosts(path, format string) error {
-	hostParams := zabbix.HostGetParams{}
-	hostParams.OutputFields = []string{"hostid"}
-
-	hosts, err := z.session.GetHosts(hostParams)
+	hosts, err := z.ListHostID("")
 	if err != nil {
-		return fmt.Errorf("Error getting Hosts: %v", err)
-	}
-
-	if len(hosts) == 0 {
-		return fmt.Errorf("No Hosts found")
+		return err
 	}
 	hostIDS := make([]string, 0)
-	for _, host := range hosts {
-		if len(host.HostID) == 0 {
-			continue
-		}
-		hostIDS = append(hostIDS, host.HostID)
+	for hostid, _ := range hosts {
+		hostIDS = append(hostIDS, hostid)
 	}
 
 	params := zabbix.ConfigurationParamsRequest{
