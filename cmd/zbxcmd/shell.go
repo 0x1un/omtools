@@ -30,10 +30,12 @@ var (
 	shells = map[string]func(string, string){
 		"hostlist": lscmd,
 	}
-	commands = []string{"host", "exit", "clear", "clean", "his"}
+	commands = []string{"host", "exit", "clear", "clean", "his", "group"}
 	help     = map[string]string{
 		"host": `host query [xxx]
 host list all`,
+		"group": `group query [xxx]
+group list all`,
 	}
 )
 
@@ -67,6 +69,7 @@ loop:
 				println(strings.Join(his, "\n"))
 				continue
 			case "clear", "clean":
+				goterm.MoveCursor(1, 1)
 				goterm.Clear()
 			default:
 				if l == 1 {
