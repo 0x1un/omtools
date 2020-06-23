@@ -7,6 +7,16 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
+func findLongStringLength(s []string) int {
+	l := 0
+	for _, v := range s {
+		if len(v) > l {
+			l = len(v)
+		}
+	}
+	return l
+}
+
 func findElement(s string, ss []string) bool {
 	for _, v := range ss {
 		if s == v {
