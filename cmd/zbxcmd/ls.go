@@ -21,16 +21,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func lscmd(status, target string) {
+func lscmd(key, target string) {
 	switch target {
 	case "host":
-		hostmap, err := zbx.ListHostID(status)
+		hostmap, err := zbx.ListHostID(key)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		for id, name := range hostmap {
 			fmt.Printf("%s\t\t -> %s\n", name, id)
+		}
+	case "group":
+		groupmap, err := zbx.ListGroup(key)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		names := make([]string, len(groupmap))
+		for _, name := range groupmap {
+			names = append(names, name)
+		}
+		l := findLongStringLength(names)
+		for id, name := range groupmap {
+			lens := l - len(name)
+			for i := 0; i < lens; i++ {
+				name += " "
+			}
+			fmt.Printf("%s\t\t->%s\n", name, id)
 		}
 	}
 }
