@@ -30,6 +30,11 @@ var (
 	shells = map[string]func(string, string){
 		"hostlist": lscmd,
 	}
+	commands = []string{"host", "exit", "clear", "clean", "his"}
+	help     = map[string]string{
+		"host": `host query [xxx]
+host list all`,
+	}
 )
 
 func shellcmd(cmd *cobra.Command, args []string) {
@@ -37,7 +42,7 @@ func shellcmd(cmd *cobra.Command, args []string) {
 	his := []string{}
 	url, username, password := getInputWithPromptui()
 	zbx = zbxtools.NewZbxTool(fmt.Sprintf("http://%s/api_jsonrpc.php", url), username, password)
-	goterm.Clear()
+loop:
 	for i := 0; ; i++ {
 		fmt.Printf("[%d]zbxtool~$ ", i)
 		read, err := buf.ReadString('\n')
@@ -48,15 +53,25 @@ func shellcmd(cmd *cobra.Command, args []string) {
 		his = append(his, fmt.Sprintf("%d %s", i, read))
 		lines := strings.Split(read, " ")[:]
 		var cm string
-		if len(lines) != 0 {
+		if l := len(lines); l != 0 {
 			cm = lines[0]
-			if cm == "exit" {
-				goterm.Clear()
-				break
-			}
-			if cm == "his" {
-				fmt.Println(strings.Join(his, "\n"))
+			if !findElement(cm, commands) && !(len(cm) == 0) {
+				fmt.Printf("Unkown command: %s\n", cm)
 				continue
+			}
+			switch cm {
+			case "exit":
+				println("bye~~")
+				break loop
+			case "his":
+				println(strings.Join(his, "\n"))
+				continue
+			case "clear", "clean":
+				goterm.Clear()
+			default:
+				if l == 1 {
+					println(help[cm])
+				}
 			}
 
 			for i := 1; i < len(lines); i++ {
