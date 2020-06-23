@@ -7,8 +7,17 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
+func findElement(s string, ss []string) bool {
+	for _, v := range ss {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
 func trimRightSapce(str string) string {
-	return strings.TrimRight(str, "\n")
+	return strings.TrimRight(str, "\r\n")
 }
 
 func spaceStringsBuilder(str string) string {
