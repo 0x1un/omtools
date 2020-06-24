@@ -16,14 +16,14 @@ limitations under the License.
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"os/signal"
+	"io"
+	"log"
+	"strconv"
 	"strings"
 	"zbxtools"
 
-	"github.com/buger/goterm"
+	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
 )
 
@@ -41,65 +41,59 @@ group list all`,
 )
 
 func shellcmd(cmd *cobra.Command, args []string) {
-	buf := bufio.NewReader(os.Stdin)
-	his := []string{}
 	url, username, password := getInputWithPromptui()
 	zbx = zbxtools.NewZbxTool(fmt.Sprintf("http://%s/api_jsonrpc.php", url), username, password)
-loop:
-	for i := 0; ; i++ {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
-		go func() {
-			for sig := range c {
-				// handle it
+
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:          "\033[31m»\033[0m ",
+		HistoryFile:     "./readline.tmp",
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+
+		HistorySearchFold:   true,
+		FuncFilterInputRune: filterInput,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+
+	setPasswordCfg := l.GenPasswordConfig()
+	setPasswordCfg.SetListener(func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
+		l.SetPrompt(fmt.Sprintf("Enter password(%v): ", len(line)))
+		l.Refresh()
+		return nil, 0, false
+	})
+
+	log.SetOutput(l.Stderr())
+	for {
+		line, err := l.Readline()
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				break
+			} else {
+				continue
 			}
-		}()
-		fmt.Printf("[%d]zbxtool~$ ", i)
-		read, err := buf.ReadString('\n')
-		if err != nil {
+		} else if err == io.EOF {
 			break
 		}
-		read = trimRightSapce(read)
-		his = append(his, fmt.Sprintf("%d %s", i, read))
-		lines := strings.Split(read, " ")[:]
-		var cm string
-		if l := len(lines); l != 0 {
-			cm = lines[0]
-			if !findElement(cm, commands) && !(len(cm) == 0) {
-				fmt.Printf("Unkown command: %s\n", cm)
-				continue
-			}
-			switch cm {
-			case "exit":
-				println("bye~~")
-				break loop
-			case "his":
-				println(strings.Join(his, "\n"))
-				continue
-			case "clear", "clean":
-				goterm.MoveCursor(1, 1)
-				goterm.Clear()
-			default:
-				if l == 1 {
-					println(help[cm])
-				}
-			}
 
-			for i := 1; i < len(lines); i++ {
-				switch lines[i] {
-				case "list":
-					if x := i + 1; x < len(lines) && lines[x] == "all" {
-						lscmd("", cm)
-
-					}
-				case "query":
-					if x := i + 1; x < len(lines) {
-						lscmd(lines[x], cm)
-					}
-				}
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "list "):
+			switch line[5:] {
+			case "host":
+				println(len(line[:4]))
+				cmdMap[line[:4]]("", line[5:])
 			}
+		case line == "bye":
+			goto exit
+		default:
+			log.Println("you said:", strconv.Quote(line))
 		}
 	}
+exit:
 }
 
 // shellCmd represents the shell command
