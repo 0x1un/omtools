@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
 	"zbxtools"
 
@@ -46,6 +47,13 @@ func shellcmd(cmd *cobra.Command, args []string) {
 	zbx = zbxtools.NewZbxTool(fmt.Sprintf("http://%s/api_jsonrpc.php", url), username, password)
 loop:
 	for i := 0; ; i++ {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for sig := range c {
+				// handle it
+			}
+		}()
 		fmt.Printf("[%d]zbxtool~$ ", i)
 		read, err := buf.ReadString('\n')
 		if err != nil {
