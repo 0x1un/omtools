@@ -16,22 +16,16 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"path"
 
 	"github.com/spf13/cobra"
 )
 
-func cfgcmd(cmd *cobra.Command, args []string) {
+func expAnyHosts(filename, _ string) {
 
-	status, _ := cmd.Flags().GetString("export")
-	if status == "" {
-		if err := cmd.Help(); err != nil {
-			panic(err)
-		}
-		return
-	}
-	fileExt := path.Ext(status)
-	err := zbx.ExportAnyHosts(status, func(s string) string {
+	fileExt := path.Ext(filename)
+	err := zbx.ExportAnyHosts(filename, func(s string) string {
 		switch s {
 		case ".xml":
 			return "xml"
@@ -40,8 +34,21 @@ func cfgcmd(cmd *cobra.Command, args []string) {
 		}
 	}(fileExt))
 	if err != nil {
-		panic(err)
+		println(err)
 	}
+	fmt.Printf("exported %s done\n", filename)
+}
+
+func cfgcmd(cmd *cobra.Command, args []string) {
+
+	argName, _ := cmd.Flags().GetString("export")
+	if argName == "" {
+		if err := cmd.Help(); err != nil {
+			panic(err)
+		}
+		return
+	}
+	expAnyHosts(argName, "")
 }
 
 // cfgCmd represents the cfg command
