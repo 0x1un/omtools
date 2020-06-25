@@ -21,19 +21,15 @@ func NewZbxTool(url, username, password string) *ZbxTool {
 
 // ExportAnyHosts export any hosts
 func (z *ZbxTool) ExportAnyHosts(path, format string) error {
-	hosts, err := z.ListHostID("")
+	ids, err := z.getAnyHostID()
 	if err != nil {
 		return err
-	}
-	hostIDS := make([]string, 0)
-	for hostid := range hosts {
-		hostIDS = append(hostIDS, hostid)
 	}
 
 	params := zabbix.ConfigurationParamsRequest{
 		Format: format,
 		Options: zabbix.ConfiguraOption{
-			Hosts: hostIDS,
+			Hosts: ids,
 		},
 	}
 	respData, err := z.session.ConfiguraExport(params)
