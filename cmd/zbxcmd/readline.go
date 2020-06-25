@@ -25,6 +25,13 @@ func listFiles(path string) func(string) []string {
 }
 
 var completer = readline.NewPrefixCompleter(
+	readline.PcItem("query",
+		readline.PcItem("host", readline.PcItem("by")),
+		readline.PcItem("tpl", readline.PcItem("by")),
+	),
+	readline.PcItem("list",
+		readline.PcItem("host"),
+	),
 	readline.PcItem("mode",
 		readline.PcItem("vi"),
 		readline.PcItem("emacs"),
