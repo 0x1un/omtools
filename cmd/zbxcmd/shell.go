@@ -27,19 +27,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	shells = map[string]func(string, string){
-		"hostlist": lscmd,
-	}
-	commands = []string{"host", "exit", "clear", "clean", "his", "group"}
-	help     = map[string]string{
-		"host": `host query [xxx]
-host list all`,
-		"group": `group query [xxx]
-group list all`,
-	}
-)
-
 func shellcmd(cmd *cobra.Command, args []string) {
 	url, username, password := getInputWithPromptui()
 	zbx = zbxtools.NewZbxTool(fmt.Sprintf("http://%s/api_jsonrpc.php", url), username, password)
@@ -84,8 +71,18 @@ func shellcmd(cmd *cobra.Command, args []string) {
 		case strings.HasPrefix(line, "list "):
 			switch line[5:] {
 			case "host":
-				println(len(line[:4]))
 				cmdMap[line[:4]]("", line[5:])
+			case "group":
+				cmdMap[line[:4]]("", line[5:])
+			}
+		// query [host] by [key]
+		case strings.HasPrefix(line, "query "):
+			subcmd := line[6:]
+			subList := strings.Split(subcmd, " ")
+			if len(subList) >= 3 {
+				if subList[1] == "by" {
+					cmdMap[line[:5]](subList[2], subList[0])
+				}
 			}
 		case line == "bye":
 			goto exit
