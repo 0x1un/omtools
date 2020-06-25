@@ -24,13 +24,10 @@ import (
 func lscmd(key, target string) {
 	switch target {
 	case "host":
-		hostmap, err := zbx.ListHostID(key)
+		err := zbx.ListHostID(key)
 		if err != nil {
 			fmt.Println(err)
 			return
-		}
-		for id, name := range hostmap {
-			fmt.Printf("%s\t\t -> %s\n", name, id)
 		}
 	case "group":
 		groupmap, err := zbx.ListGroup(key)

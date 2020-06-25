@@ -84,6 +84,14 @@ func shellcmd(cmd *cobra.Command, args []string) {
 					cmdMap[line[:5]](subList[2], subList[0])
 				}
 			}
+		case strings.HasPrefix(line, "cfg "):
+			subcmd := line[4:]
+			subList := strings.Split(subcmd, " ")
+			if len(subList) >= 2 {
+				if subList[0] == "export" {
+					cmdMap[line[:3]](subList[1], "")
+				}
+			}
 		case line == "bye":
 			goto exit
 		default:
