@@ -3,7 +3,7 @@ module zbxtools
 go 1.14
 
 require (
-	github.com/buger/goterm v0.0.0-20200322175922-2f3e71b85129
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
