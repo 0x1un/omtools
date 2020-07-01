@@ -18,17 +18,27 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
 
 func lscmd(key, target string) {
+	tw := table.NewWriter()
 	switch target {
 	case "host":
-		err := zbx.ListHostID(key)
+		hosts, err := zbx.ListHostID(key)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
+		tw.AppendHeader(table.Row{"id", "name", "ip"})
+		rows := make([]table.Row, 0)
+		for _, host := range hosts {
+			rows = append(rows, table.Row{host.ID, host.Name, host.IP})
+		}
+		tw.AppendRows(rows)
+		tw.SortBy([]table.SortBy{{Name: "id", Mode: table.AscNumeric}})
+		fmt.Println(tw.Render())
 	case "group":
 		groupmap, err := zbx.ListGroup(key)
 		if err != nil {
@@ -39,14 +49,19 @@ func lscmd(key, target string) {
 		for _, name := range groupmap {
 			names = append(names, name)
 		}
+		tw.AppendHeader(table.Row{"id", "name"})
+		rows := make([]table.Row, 0)
 		l := findLongStringLength(names)
 		for id, name := range groupmap {
 			lens := l - len(name)
 			for i := 0; i < lens; i++ {
 				name += " "
 			}
-			fmt.Printf("%s\t\t->%s\n", name, id)
+			rows = append(rows, table.Row{id, name})
 		}
+		tw.AppendRows(rows)
+		tw.SortBy([]table.SortBy{{Name: "id", Mode: table.AscNumeric}})
+		fmt.Println(tw.Render())
 	}
 }
 

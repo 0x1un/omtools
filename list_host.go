@@ -6,6 +6,12 @@ import (
 	"zbxtools/go-zabbix"
 )
 
+type hostinfo struct {
+	ID   string
+	IP   string
+	Name string
+}
+
 func (z *ZbxTool) getAnyHostID() ([]string, error) {
 	params := zabbix.HostGetParams{}
 	params.OutputFields = []string{"hostid"}
@@ -24,20 +30,21 @@ func (z *ZbxTool) getAnyHostID() ([]string, error) {
 }
 
 // @params key: 模糊搜索的关键字
-func (z *ZbxTool) ListHostID(key string) error {
+func (z *ZbxTool) ListHostID(key string) ([]hostinfo, error) {
 	hostParams := zabbix.HostGetParams{}
 	hostParams.OutputFields = []string{"hostid", "name"}
 
 	hosts, err := z.session.GetHosts(hostParams)
 	if err != nil {
-		return fmt.Errorf("Error getting Hosts: %v", err)
+		return nil, fmt.Errorf("Error getting Hosts: %v", err)
 	}
 
 	if len(hosts) == 0 {
-		return fmt.Errorf("No Hosts found")
+		return nil, fmt.Errorf("No Hosts found")
 	}
 
 	p2 := zabbix.HostInterfaceGetParams{}
+	hostArray := make([]hostinfo, 0)
 	for _, host := range hosts {
 		if len(host.HostID) == 0 {
 			continue
@@ -53,12 +60,20 @@ func (z *ZbxTool) ListHostID(key string) error {
 			return ifres[0].IP
 		}
 		if len(key) == 0 {
-			println(host.HostID, host.DisplayName+"\t"+ip(host.HostID))
+			hostArray = append(hostArray, hostinfo{
+				ID:   host.HostID,
+				IP:   ip(host.HostID),
+				Name: host.DisplayName,
+			})
 			continue
 		}
 		if strings.Contains(host.DisplayName, key) {
-			println(host.HostID, host.DisplayName+"\t"+ip(host.HostID))
+			hostArray = append(hostArray, hostinfo{
+				ID:   host.HostID,
+				IP:   ip(host.HostID),
+				Name: host.DisplayName,
+			})
 		}
 	}
-	return nil
+	return hostArray, nil
 }
