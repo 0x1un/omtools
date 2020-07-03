@@ -20,14 +20,17 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"omtools/zbxtools"
 	"strconv"
 	"strings"
-	"zbxtools"
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
 )
 
+const (
+	zbxUrl = "http://%s/api_jsonrpc.php"
+)
 
 // shellCmd represents the shell command
 var shellCmd = &cobra.Command{
@@ -73,6 +76,9 @@ var completer = readline.NewPrefixCompleter(
 		readline.PcItem("tpl", readline.PcItem("by")),
 		readline.PcItem("graph", readline.PcItem("by")),
 	),
+	readline.PcItem("go",
+		readline.PcItem("zbx"),
+		readline.PcItem("ad")),
 	readline.PcItem("list",
 		readline.PcItem("host"),
 	),
@@ -95,22 +101,11 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("setpassword"),
 	readline.PcItem("bye"),
 	readline.PcItem("help"),
-	readline.PcItem("go",
-		readline.PcItem("build", readline.PcItem("-o"), readline.PcItem("-v")),
-		readline.PcItem("install",
-			readline.PcItem("-v"),
-			readline.PcItem("-vv"),
-			readline.PcItem("-vvv"),
-		),
-		readline.PcItem("test"),
-	),
-	readline.PcItem("sleep"),
 )
 
 func shellcmd(cmd *cobra.Command, args []string) {
-	url, username, password := getInputWithPromptui()
-	zbx = zbxtools.NewZbxTool(fmt.Sprintf("http://%s/api_jsonrpc.php", url), username, password)
 
+	// set line prompt
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          "\033[31m»\033[0m ",
 		HistoryFile:     "./readline.tmp",
@@ -145,38 +140,52 @@ func shellcmd(cmd *cobra.Command, args []string) {
 		} else if err == io.EOF {
 			break
 		}
+		if line == "bye" || line == "exit" {
+			goto exit
+		}
 
 		line = strings.TrimSpace(line)
-		switch {
-		case strings.HasPrefix(line, "list "):
-			switch line[5:] {
-			case "host":
-				cmdMap[line[:4]]("", line[5:])
-			case "group":
-				cmdMap[line[:4]]("", line[5:])
-			}
-		// query [host] by [key]
-		case strings.HasPrefix(line, "query "):
-			subcmd := line[6:]
-			subList := strings.Split(subcmd, " ")
-			if len(subList) >= 3 {
-				if subList[1] == "by" {
-					cmdMap[line[:5]](subList[2], subList[0])
-				}
-			}
-		case strings.HasPrefix(line, "cfg "):
-			subcmd := line[4:]
-			subList := strings.Split(subcmd, " ")
-			if len(subList) >= 2 {
-				if subList[0] == "export" {
-					cmdMap[line[:3]](subList[1], "")
-				}
-			}
-		case line == "bye":
-			goto exit
-		default:
-			log.Println("you said:", strconv.Quote(line))
+		if line == "go zbx" {
+			url, username, password := getInputWithPromptui()
+			zbx = zbxtools.NewZbxTool(fmt.Sprintf(zbxUrl, url), username, password)
+		}
+		if zbx != nil {
+			zbxCmdHandler(line)
 		}
 	}
 exit:
+}
+
+func zbxCmdHandler(line string) {
+
+	switch {
+	case strings.HasPrefix(line, "list "):
+		switch line[5:] {
+		case "host":
+			cmdMap[line[:4]]("", line[5:])
+		case "group":
+			cmdMap[line[:4]]("", line[5:])
+		}
+	// query [host] by [key]
+	case strings.HasPrefix(line, "query "):
+		subcmd := line[6:]
+		subList := strings.Split(subcmd, " ")
+		if len(subList) >= 3 {
+			if subList[1] == "by" {
+				cmdMap[line[:5]](subList[2], subList[0])
+			}
+		}
+	case strings.HasPrefix(line, "cfg "):
+		subcmd := line[4:]
+		subList := strings.Split(subcmd, " ")
+		if len(subList) >= 2 {
+			if subList[0] == "export" {
+				cmdMap[line[:3]](subList[1], "")
+			}
+		}
+	case line == "go zbx":
+		println("connect to zabbix server...")
+	default:
+		log.Println("you said:", strconv.Quote(line))
+	}
 }
