@@ -1,4 +1,4 @@
-module zbxtools
+module omtools
 
 go 1.14
 

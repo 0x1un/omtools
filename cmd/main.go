@@ -1,8 +1,6 @@
 package main
 
-import (
-	cmd "zbxtools/cmd/zbxcmd"
-)
+import cmd "omtools/cmd/zbxcmd"
 
 func main() {
 	cmd.Execute()

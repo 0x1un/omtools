@@ -17,8 +17,8 @@ package cmd
 
 import (
 	"fmt"
+	"omtools/zbxtools"
 	"os"
-	"zbxtools"
 
 	"github.com/spf13/cobra"
 
