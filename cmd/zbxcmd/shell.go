@@ -97,8 +97,6 @@ var completer = readline.NewPrefixCompleter(
 		readline.PcItem("hello"),
 		readline.PcItem("bye"),
 	),
-	readline.PcItem("setprompt"),
-	readline.PcItem("setpassword"),
 	readline.PcItem("bye"),
 	readline.PcItem("help"),
 )
@@ -157,7 +155,6 @@ exit:
 }
 
 func zbxCmdHandler(line string) {
-
 	switch {
 	case strings.HasPrefix(line, "list "):
 		switch line[5:] {
