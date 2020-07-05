@@ -1,0 +1,3 @@
+[submodule "go-zabbix"]
+	path = go-zabbix
+	url = https://github.com/0x1un/go-zabbix
