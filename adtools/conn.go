@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	BaseDN = "dc=0x1un,dc=io"
+	BaseDN = "DC=0x1un,DC=io"
 )
 
 type adConn struct {

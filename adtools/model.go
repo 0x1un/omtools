@@ -8,19 +8,19 @@ import (
 
 // UserProfile is the necessary for create user
 type UserInfo struct {
-	Username           string
-	Cn                 string
-	Org                string
-	Description        []string
-	UnicodePwd         []string
-	ObjectClass        []string
-	UserAccountControl []string // 514 activate
-	DisplayName        []string
-	SAMAccountName     []string
+	Username           string   // not null
+	Cn                 string   // not null
+	Org                string   // not null
+	Description        []string // not null
+	UnicodePwd         []string // not null
+	ObjectClass        []string // not null
+	UserAccountControl []string // 514 is disabled, 512 is activate
+	DisplayName        []string // not null
+	SAMAccountName     []string // not null
 }
 
 func GenAttribute(profile UserInfo) *ldap.AddRequest {
-	newreq := fmt.Sprintf("cn=%s,ou=%s,"+BaseDN, profile.Cn, profile.Org)
+	newreq := fmt.Sprintf("cn=%s,%s,"+BaseDN, profile.Cn, profile.Org)
 	sqlInsert := ldap.NewAddRequest(newreq, nil)
 	sqlInsert.Attribute("objectClass", profile.ObjectClass)
 	sqlInsert.Attribute("cn", StringListWrap(profile.Cn))
