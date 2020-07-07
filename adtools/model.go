@@ -6,6 +6,14 @@ import (
 	"github.com/go-ldap/ldap/v3"
 )
 
+var (
+	UserIsAlreadyExsist = func(a interface{}) error { return fmt.Errorf("user is already exsists: %s", a) }
+)
+
+type Failed struct {
+	Errors []error
+}
+
 // UserProfile is the necessary for create user
 type UserInfo struct {
 	Username           string   // not null
