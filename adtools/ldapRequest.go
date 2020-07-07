@@ -141,11 +141,11 @@ func (c *adConn) DelUserMultiple(path, orgName string) Failed {
 	for _, record := range records[1:] {
 		err := c.DelUser(record[0], orgName)
 		if err != nil {
-			ldapErr, ok := err.(*ldap.Error)
+			_, ok := err.(*ldap.Error)
 			if !ok {
 				faileds.Errors = append(faileds.Errors, err)
-			} else {
-				faileds.Errors = append(faileds.Errors, ldapErr)
+			} else if ldap.IsErrorWithCode(err, 32) {
+				faileds.Errors = append(faileds.Errors, fmt.Errorf("no such object: %s", record[0]))
 			}
 			continue
 		}
