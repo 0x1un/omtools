@@ -5,9 +5,10 @@ import "fmt"
 // query options
 const (
 	CnFilter                  = "(CN=%s)"
+	CnFuzzyFilter             = "(CN=*%s*)"
 	SAMAccountNameFilter      = "(sAMAccountName=%s)"
 	SAMAccountNameFuzzyFilter = "(sAMAccountName=*%s*)"
-	OuWithoutDefaultOUFilter  = "(&(objectClass=organizationalUnit)(!(OU=Domain Controllers)))"
+	OuWithoutDefaultOUFilter  = "(&(objectClass=organizationalUnit)(ou=%s)(!(OU=Domain Controllers)))"
 )
 
 var (
