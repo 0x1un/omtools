@@ -128,6 +128,19 @@ func Jdisable(flags bool) []string {
 	return EnabledFlag
 }
 
+func PrintlnList(a interface{}) {
+	switch a.(type) {
+	case []string:
+		for _, v := range a.([]string) {
+			fmt.Println(v)
+		}
+	case []error:
+		for _, v := range a.([]error) {
+			fmt.Println(v)
+		}
+	}
+}
+
 // GetErrorCode matching the error number from string
 // give a string: LDAP Result Code 68 "Entry Already Exists": 00000524: UpdErr: DSID-031A11E2, problem 6005 (ENTRY_EXISTS), data 0
 // return 68
