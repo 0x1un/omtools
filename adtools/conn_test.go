@@ -26,13 +26,36 @@ func init() {
 	conn = con
 }
 
+func TestTemp(t *testing.T) {
+	failed := conn.MoveUserMultiple("testfiles/example2.csv", "o1")
+	if len(failed.Errors) > 0 {
+		PrintlnList(failed.Errors)
+	}
+}
+
+func TestMoveUser(t *testing.T) {
+	err := conn.MoveUser("test", "o2")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDelUserMultiple(t *testing.T) {
+	failed := conn.DelUserMultiple("testfiles/example2.csv", "ou=o1,ou=om")
+	if fd := failed.Errors; len(fd) > 0 {
+		PrintlnList(fd)
+	}
+}
 func TestPreReadFile(t *testing.T) {
-	res := PreReadFile("./example2.csv")
+	res := PreReadFile("testfiles/example2.csv")
 	fmt.Println(res)
 }
 
 func TestAddUserMultiple(t *testing.T) {
-	conn.AddUserMultiple("./example.csv", "ou=o1,ou=om", false)
+	failed := conn.AddUserMultiple("testfiles/example2.csv", "ou=o1,ou=om", false)
+	if fd := failed.Errors; len(fd) > 0 {
+		PrintlnList(fd)
+	}
 }
 
 func TestBind(t *testing.T) {
@@ -45,7 +68,7 @@ func TestResetPassword(t *testing.T) {
 	}
 }
 func TestQueryUser(t *testing.T) {
-	res, err := conn.QueryUser(OuWithoutDefaultOUFilter, false)
+	res, err := conn.QueryUser(OuWithoutDefaultOUFilter)
 	if err != nil {
 		t.Fatal(err)
 	}
