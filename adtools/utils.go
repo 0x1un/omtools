@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/qiniu/iconv"
 	"github.com/saintfish/chardet"
+	"github.com/xlab/treeprint"
 	"golang.org/x/text/encoding/unicode"
 )
 
@@ -141,10 +143,66 @@ func PrintlnList(a interface{}) {
 	}
 }
 
+//		"ou=feizhudingding,ou=feizhu,ou=cdjh-al,dc=0x1un,dc=io",
+//		"ou=feizhuuser,ou=feizhu,ou=cdjh-al,dc=0x1un,dc=io",
+func ParseDN2Tree(array []string) string {
+	dcList := []string{}
+	ouList := []string{}
+	tree := treeprint.New()
+	for _, v := range array {
+		splited := strings.Split(v, ",")
+		for _, vv := range reverse(splited) {
+			switch {
+			case strings.HasPrefix(strings.ToLower(vv), "dc="):
+				vv = strings.Replace(vv, "dc=", "", -1)
+				dcList = append(dcList, vv)
+			case strings.HasPrefix(strings.ToLower(vv), "ou="):
+				vv = strings.Replace(vv, "ou=", "", -1)
+				ouList = append(ouList, vv)
+			}
+		}
+	}
+	dc := strings.Join(removeDuplicateElem(reverse(dcList)), ".")
+	fmt.Println(ouList)
+	// ou := strings.Join(reverse(ouList), ".")
+	tree.AddBranch(dc)
+	return tree.String()
+}
+
+func reverse(a []string) []string {
+	aa := []string{}
+	for i := len(a) - 1; i >= 0; i-- {
+		aa = append(aa, a[i])
+	}
+	return aa
+}
+
+func merge(a []string, b []string) []string {
+	an, bn := len(a), len(b)
+	if an == 0 || bn == 0 {
+		return nil
+	}
+	tailA, tailB := a[an-1], b[bn-1]
+	if tailA != tailB {
+		return nil
+	}
+	a = append(a, b...)
+	return removeDuplicateElem(a)
+}
+
 // GetErrorCode matching the error number from string
 // give a string: LDAP Result Code 68 "Entry Already Exists": 00000524: UpdErr: DSID-031A11E2, problem 6005 (ENTRY_EXISTS), data 0
 // return 68
 func GetErrorCode(msg string) uint16 {
 
 	return 0
+}
+
+func inArray(a []string, b string) bool {
+	for _, v := range a {
+		if b == v {
+			return true
+		}
+	}
+	return false
 }
