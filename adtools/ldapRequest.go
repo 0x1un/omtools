@@ -50,10 +50,14 @@ func (c *adConn) DelUser(disName, ouPath string) error {
 }
 
 // QueryUser get single user information
-func (c *adConn) QueryUser(filter string) (*ldap.SearchResult, error) {
+func (c *adConn) QueryUserFromBaseDN(filter string) (*ldap.SearchResult, error) {
+	return c.QueryUser(BaseDN, filter, ldap.ScopeWholeSubtree)
+}
+
+func (c *adConn) QueryUser(dn, filter string, scope int) (*ldap.SearchResult, error) {
 	searchReq := ldap.NewSearchRequest(
-		BaseDN,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		dn,
+		scope, ldap.NeverDerefAliases, 0, 0, false,
 		filter,
 		StringListWrap(""), nil)
 	res, err := c.Conn.Search(searchReq)
@@ -183,16 +187,24 @@ func (c *adConn) moveUserAbsPath(from, to string) error {
 func (c *adConn) MoveUser(from, to string) error {
 	fromFilter := Ft(CnFilter, from)
 	toFilter := Ft(OuWithoutDefaultOUFilter, to)
-	fromQuery, err := c.QueryUser(fromFilter)
+	fromQuery, err := c.QueryUserFromBaseDN(fromFilter)
 	if err != nil {
 		return err
 	}
-	toQuery, err := c.QueryUser(toFilter)
+	toQuery, err := c.QueryUserFromBaseDN(toFilter)
 	if err != nil {
 		return err
 	}
 	if len(fromQuery.Entries) == 0 || len(toQuery.Entries) == 0 {
 		return fmt.Errorf("failed to query dn path: %s or %s", from, to)
+	}
+	// 目标有多个, 提醒用户去选择
+	if entry := toQuery.Entries; len(entry) > 1 {
+		fmt.Println("conflict, have identical path:")
+		for _, v := range entry {
+			fmt.Println("\t", v.DN)
+		}
+		return nil
 	}
 	// 判断user是否已在此组
 	if list := strings.Split(fromQuery.Entries[0].DN, ","); len(list) > 0 {
