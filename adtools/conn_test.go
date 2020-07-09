@@ -3,19 +3,24 @@ package adtools
 import (
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/xlab/treeprint"
 )
 
 const (
-	LDAP     = "ldap://172.19.2.10"
-	username = "administrator@0x1un.io"
-	password = "gdlk@123"
+	LDAP       = "ldap://172.19.2.10"
+	username   = "administrator@0x1un.io"
+	password   = "gdlk@123"
+	baseDomain = "0x1un.io"
 )
 
 var (
-	conn *adConn
+	conn    *adConn
+	already []string
+	tree    = treeprint.New()
 )
 
 func init() {
@@ -26,6 +31,78 @@ func init() {
 	conn = con
 }
 
+var (
+	linked = NewLinked()
+	flag   = false
+)
+
+func recur(searchBase string) {
+	var query = conn.QueryUser
+	if len(strings.TrimSpace(searchBase)) == 0 {
+		fmt.Println("searchBase cannot be empty")
+		return
+	}
+	// 从根向下搜索节点，深度为 1
+	res, err := query(searchBase, Ft(OuWithoutDefaultOUFilter, "*"), ldap.ScopeSingleLevel)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !flag {
+		for _, node := range res.Entries {
+			tree.AddBranch(node.DN)
+			linked.Push(element(node.DN))
+		}
+		flag = true
+	}
+
+	// 从搜索到的节点中遍历，将每个节点再次进行深度为1的搜索
+	for _, node := range res.Entries {
+		idx := linked.Search(element(strings.Join(strings.Split(node.DN, ",")[1:], ",")))
+		if idx >= 0 {
+			tre := tree.FindByValue(string(linked.Get(uint(idx)).Data))
+			if tre != nil {
+				tre.AddBranch(node.DN)
+			}
+
+		}
+		recur(node.DN)
+	}
+}
+
+func TestQueryDepth(t *testing.T) {
+	tree = tree.AddBranch(BaseDN)
+	recur(BaseDN)
+	res, err := conn.QueryUser(BaseDN, Ft(OuWithoutDefaultOUFilter, "*"), ldap.ScopeWholeSubtree)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, v := range res.Entries {
+		tre := tree.FindByValue(strings.Split(v.DN, ",")[1:])
+		if tre != nil {
+			continue
+		}
+	}
+	println(tree.String())
+
+}
+
+func TestLinkedList(t *testing.T) {
+	link := NewLinked()
+	for i := 0; i <= 26; i++ {
+		link.Push(element(fmt.Sprintf("%c", 'a'+i)))
+	}
+	link.Print()
+	println(link.Get(0).Data)
+	println(link.Get(25))
+	println(link.Search("a"))
+	println(link.Search("b"))
+	println(link.Search("c"))
+	println(link.Search("d"))
+	println(link.Search("z"))
+	println(link.Len())
+}
+
 func TestTemp(t *testing.T) {
 	failed := conn.MoveUserMultiple("testfiles/example2.csv", "o1")
 	if len(failed.Errors) > 0 {
@@ -34,7 +111,7 @@ func TestTemp(t *testing.T) {
 }
 
 func TestMoveUser(t *testing.T) {
-	err := conn.MoveUser("test", "o2")
+	err := conn.MoveUser("zj", "cdjh-al")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,13 +143,6 @@ func TestResetPassword(t *testing.T) {
 	if err := conn.ResetPasswd("aumujun", "goodluck@123", "ou=o1,ou=om"); err != nil {
 		t.Fatal(err)
 	}
-}
-func TestQueryUser(t *testing.T) {
-	res, err := conn.QueryUser(OuWithoutDefaultOUFilter)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res.PrettyPrint(2)
 }
 
 func TestDel(t *testing.T) {
