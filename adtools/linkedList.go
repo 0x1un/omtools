@@ -89,7 +89,7 @@ func (l *LinkHead) Get(index uint) *LinkNode {
 }
 func (l *LinkHead) Print() {
 	for p := l.Node; p.Next != nil; p = p.Next {
-		print(p.Data)
+		println(p.Data)
 	}
 	println()
 }
