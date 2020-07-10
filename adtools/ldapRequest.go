@@ -4,7 +4,6 @@ package adtools
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
@@ -30,11 +29,16 @@ type ADTooller interface {
 	MoveUser(from, to string) error
 	MoveUserMultiple(path, to string) Failed
 	BuiltinConn() *ldap.Conn
+	MoveUserAbsPath(from, to string) error
 }
 
 func (c *adConn) BuiltinConn() *ldap.Conn {
 	return c.Conn
 }
+
+func (c *adConn) UnlockUser() {}
+
+func (c *adConn) ExportTemplate() {}
 
 // AddUser add a single user to specify ou
 // orgName mut be "ou=01,ou=om"
@@ -55,9 +59,19 @@ func (c *adConn) AddUser(disName, username, orgName, loginPwd, description strin
 		Description:        StringListWrap(description),
 		DisplayName:        StringListWrap(disName),
 	})
-	if err := c.Conn.Add(attr); err != nil {
-		return err
+	err := c.Conn.Add(attr)
+	if err != nil {
+		if ldap.IsErrorWithCode(err, 68) {
+			return fmt.Errorf("%s is already exists\n", disName)
+		}
+		ldapErr, ok := err.(*ldap.Error)
+		if !ok {
+			return fmt.Errorf("unkown error: %s", err.Error())
+		}
+		msg := ldap.LDAPResultCodeMap[ldapErr.ResultCode]
+		return fmt.Errorf("dn: %s, msg: %s\n", disName, msg)
 	}
+	fmt.Printf("added user: %s\n", disName)
 	return nil
 }
 
@@ -72,7 +86,18 @@ func (c *adConn) AddUser(disName, username, orgName, loginPwd, description strin
 func (c *adConn) DelUser(disName, ouPath string) error {
 	delDn := fmt.Sprintf("CN=%s,%s,%s", disName, ouPath, BaseDN)
 	delReq := ldap.NewDelRequest(delDn, nil)
-	return c.Conn.Del(delReq)
+	err := c.Conn.Del(delReq)
+	if err != nil {
+		ldapErr, ok := err.(*ldap.Error)
+		if !ok {
+			return fmt.Errorf("unkown error: %s", err.Error())
+		}
+		if ldap.IsErrorWithCode(err, 32) {
+			return fmt.Errorf("del dn: %s, %s", disName, ldap.LDAPResultCodeMap[ldapErr.ResultCode])
+		}
+		return fmt.Errorf("del dn: %s, %s", disName, ldap.LDAPResultCodeMap[ldapErr.ResultCode])
+	}
+	return nil
 }
 
 // QueryUser get single user information
@@ -118,45 +143,23 @@ func (c *adConn) CheckAccount(username, password string) {
 // 只返回失败的item
 func (c *adConn) AddUserMultiple(importPath, orgName string, disabled bool) Failed {
 	records := PreReadFile(importPath)
-	attributes := make([]*ldap.AddRequest, 0)
+	failed := Failed{}
 	// convert record to *ldap.AddRequest list
 LOOP_1:
+	// ignored head line
 	for _, record := range records[1:] {
+		// continue if record is empty
 		for _, r := range record {
 			if r == "" {
 				continue LOOP_1
 			}
 		}
-		attributes = append(attributes, GenAttribute(UserInfo{
-			Username:           record[2],
-			Cn:                 record[0],
-			Org:                orgName,
-			SAMAccountName:     StringListWrap(record[2]),
-			UserAccountControl: Jdisable(disabled),
-			ObjectClass:        StringListWrap("top", "person", "organizationalPerson", "user"),
-			UnicodePwd:         StringListWrap(EncodePwd(record[3])),
-			Description:        StringListWrap(record[1]),
-			DisplayName:        StringListWrap(record[0]),
-		}))
-	}
-
-	failed := Failed{}
-	for _, reqAttr := range attributes {
-		err := c.Conn.Add(reqAttr)
+		err := c.AddUser(record[0], record[2], orgName, record[3], record[1], disabled)
 		if err != nil {
-			if ldap.IsErrorWithCode(err, 68) {
-				log.Printf("%s is already exists\n", reqAttr.DN)
-				continue
-			}
-			ldapErr, ok := err.(*ldap.Error)
-			if !ok {
-				failed.Errors = append(failed.Errors, fmt.Errorf(err.Error()+": %s", reqAttr.DN))
-				continue
-			}
-			msg := ldap.LDAPResultCodeMap[ldapErr.ResultCode]
-			log.Printf("dn: %s, msg: %s\n", reqAttr.DN, msg)
+			failed.Errors = append(failed.Errors, err)
 		}
 	}
+
 	return failed
 }
 
@@ -166,28 +169,21 @@ LOOP_1:
 // 张三,1001,zhangsan,jnk@123.
 // 只返回失败的item
 func (c *adConn) DelUserMultiple(path, orgName string) Failed {
-	faileds := Failed{}
+	failed := Failed{}
 	records := PreReadFile(path)
 	for _, record := range records[1:] {
 		err := c.DelUser(record[0], orgName)
 		if err != nil {
-			_, ok := err.(*ldap.Error)
-			if !ok {
-				faileds.Errors = append(faileds.Errors, err)
-			} else if ldap.IsErrorWithCode(err, 32) {
-				faileds.Errors = append(faileds.Errors, fmt.Errorf("no such object: %s", record[0]))
-			}
-			continue
+			failed.Errors = append(failed.Errors, err)
 		}
-		fmt.Printf("del user: %s\n", record[0])
 	}
-	return faileds
+	return failed
 }
 
 // MoveUser move only
 // for example: move Harry to o2 organization
 // MoveUser("cn=Harry,ou=o1,ou=om,dc=0x1un,dc=io","ou=o2,ou=om,dc=0x1un,dc=io")
-func (c *adConn) moveUserAbsPath(from, to string) error {
+func (c *adConn) MoveUserAbsPath(from, to string) error {
 	getFirst := func(s string) string {
 		list := strings.Split(s, ",")
 		if len(list) == 0 {
@@ -195,6 +191,7 @@ func (c *adConn) moveUserAbsPath(from, to string) error {
 		}
 		return list[0]
 	}
+	fmt.Println(getFirst(from))
 	modifyReq := ldap.NewModifyDNRequest(from, getFirst(from), true, to)
 	err := c.Conn.ModifyDN(modifyReq)
 	if err != nil {
@@ -221,8 +218,11 @@ func (c *adConn) MoveUser(from, to string) error {
 	if err != nil {
 		return err
 	}
-	if len(fromQuery.Entries) == 0 || len(toQuery.Entries) == 0 {
-		return fmt.Errorf("failed to query dn path: %s or %s", from, to)
+	if len(fromQuery.Entries) == 0 {
+		return fmt.Errorf("query %s failed\n", from)
+	}
+	if len(toQuery.Entries) == 0 {
+		return fmt.Errorf("query %s failed\n", to)
 	}
 	// 目标有多个, 提醒用户去选择
 	if entry := toQuery.Entries; len(entry) > 1 {
@@ -238,7 +238,7 @@ func (c *adConn) MoveUser(from, to string) error {
 			return UserIsAlreadyExsist(from)
 		}
 	}
-	err = c.moveUserAbsPath(fromQuery.Entries[0].DN, toQuery.Entries[0].DN)
+	err = c.MoveUserAbsPath(fromQuery.Entries[0].DN, toQuery.Entries[0].DN)
 	if err != nil {
 		return err
 	}
