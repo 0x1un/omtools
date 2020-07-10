@@ -9,6 +9,7 @@ import (
 var (
 	UserIsAlreadyExsist = func(a interface{}) error { return fmt.Errorf("user is already exsists: %s", a) }
 	IdenticalTarget     = func(a interface{}) error { return fmt.Errorf("have indentical target: %s", a) }
+	NotFound            = func(a interface{}) error { return fmt.Errorf("%v not found\n", a) }
 )
 
 type Failed struct {
