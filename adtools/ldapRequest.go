@@ -10,6 +10,32 @@ import (
 	"github.com/go-ldap/ldap/v3"
 )
 
+func NewADTools(url, buser, bpass string) (ADTooller, error) {
+	conn, err := NewADConn(url, buser, bpass)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+type ADTooller interface {
+	AddUser(disName, username, orgName, loginPwd, description string, disabled bool) error
+	DelUser(disName, ouPath string) error
+	QueryUserFromBaseDN(filter string) (*ldap.SearchResult, error)
+	QueryUser(dn, filter string, scope int) (*ldap.SearchResult, error)
+	ResetPasswd(uname, passwd, ouPath string) error
+	CheckAccount(username, password string)
+	AddUserMultiple(importPath, orgName string, disabled bool) Failed
+	DelUserMultiple(path, orgName string) Failed
+	MoveUser(from, to string) error
+	MoveUserMultiple(path, to string) Failed
+	BuiltinConn() *ldap.Conn
+}
+
+func (c *adConn) BuiltinConn() *ldap.Conn {
+	return c.Conn
+}
+
 // AddUser add a single user to specify ou
 // orgName mut be "ou=01,ou=om"
 /*
@@ -114,7 +140,7 @@ LOOP_1:
 		}))
 	}
 
-	faileds := Failed{}
+	failed := Failed{}
 	for _, reqAttr := range attributes {
 		err := c.Conn.Add(reqAttr)
 		if err != nil {
@@ -124,14 +150,14 @@ LOOP_1:
 			}
 			ldapErr, ok := err.(*ldap.Error)
 			if !ok {
-				faileds.Errors = append(faileds.Errors, fmt.Errorf(err.Error()+": %s", reqAttr.DN))
+				failed.Errors = append(failed.Errors, fmt.Errorf(err.Error()+": %s", reqAttr.DN))
 				continue
 			}
 			msg := ldap.LDAPResultCodeMap[ldapErr.ResultCode]
 			log.Printf("dn: %s, msg: %s\n", reqAttr.DN, msg)
 		}
 	}
-	return faileds
+	return failed
 }
 
 // DelUserMultiple import user from csv file and remove them
