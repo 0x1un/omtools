@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/manifoldco/promptui"
 )
 
 func NewADTools(url, buser, bpass string) (ADTooller, error) {
@@ -36,9 +37,10 @@ func (c *adConn) BuiltinConn() *ldap.Conn {
 	return c.Conn
 }
 
-func (c *adConn) UnlockUser() {}
-
-func (c *adConn) ExportTemplate() {}
+func (c *adConn) UnlockUser()                 {}
+func (c *adConn) LockUser()                   {}
+func (c *adConn) ExportTemplate()             {}
+func (c *adConn) RemoveExpireComputerOnTime() {}
 
 // AddUser add a single user to specify ou
 // orgName mut be "ou=01,ou=om"
@@ -219,18 +221,28 @@ func (c *adConn) MoveUser(from, to string) error {
 		return err
 	}
 	if len(fromQuery.Entries) == 0 {
-		return fmt.Errorf("query %s failed\n", from)
+		return NotFound(from)
 	}
 	if len(toQuery.Entries) == 0 {
-		return fmt.Errorf("query %s failed\n", to)
+		return NotFound(to)
 	}
 	// 目标有多个, 提醒用户去选择
+	selectPath := toQuery.Entries[0].DN
 	if entry := toQuery.Entries; len(entry) > 1 {
-		fmt.Println("conflict, have identical path:")
+		dnn := []string{}
 		for _, v := range entry {
-			fmt.Println("\t", v.DN)
+			dnn = append(dnn, v.DN)
 		}
-		return nil
+		pSelect := promptui.Select{
+			Label: "Select path",
+			Items: dnn,
+		}
+		_, res, err := pSelect.Run()
+		if err != nil {
+			fmt.Println(err)
+			return nil
+		}
+		selectPath = res
 	}
 	// 判断user是否已在此组
 	if list := strings.Split(fromQuery.Entries[0].DN, ","); len(list) > 0 {
@@ -238,7 +250,7 @@ func (c *adConn) MoveUser(from, to string) error {
 			return UserIsAlreadyExsist(from)
 		}
 	}
-	err = c.MoveUserAbsPath(fromQuery.Entries[0].DN, toQuery.Entries[0].DN)
+	err = c.MoveUserAbsPath(fromQuery.Entries[0].DN, selectPath)
 	if err != nil {
 		return err
 	}
