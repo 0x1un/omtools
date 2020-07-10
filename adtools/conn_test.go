@@ -18,13 +18,13 @@ const (
 )
 
 var (
-	conn    *adConn
+	conn    ADTooller
 	already []string
 	tree    = treeprint.New()
 )
 
 func init() {
-	con, err := NewADConn(LDAP, username, password)
+	con, err := NewADTools(LDAP, username, password)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,14 +111,14 @@ func TestTemp(t *testing.T) {
 }
 
 func TestMoveUser(t *testing.T) {
-	err := conn.MoveUser("zj", "cdjh-al")
+	err := conn.MoveUser("朱旭威", "cdjh-al")
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestDelUserMultiple(t *testing.T) {
-	failed := conn.DelUserMultiple("testfiles/example2.csv", "ou=o1,ou=om")
+	failed := conn.DelUserMultiple("testfiles/example.csv", "ou=o1,ou=om")
 	if fd := failed.Errors; len(fd) > 0 {
 		PrintlnList(fd)
 	}
@@ -129,7 +129,7 @@ func TestPreReadFile(t *testing.T) {
 }
 
 func TestAddUserMultiple(t *testing.T) {
-	failed := conn.AddUserMultiple("testfiles/example2.csv", "ou=o1,ou=om", false)
+	failed := conn.AddUserMultiple("testfiles/example.csv", "ou=o1,ou=om", false)
 	if fd := failed.Errors; len(fd) > 0 {
 		PrintlnList(fd)
 	}
@@ -166,7 +166,8 @@ func TestConn(t *testing.T) {
 		fmt.Sprintf(CnFilter, "zhangqing"),
 		StringListWrap(""), nil,
 	)
-	sr, err := conn.Conn.Search(searchRequest)
+	// sr, err := conn.Search(searchRequest)
+	sr, err := conn.BuiltinConn().Search(searchRequest)
 	if err != nil {
 		t.Error(err)
 	}
