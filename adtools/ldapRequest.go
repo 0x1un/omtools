@@ -19,9 +19,13 @@ func NewADTools(url, buser, bpass string) (ADTooller, error) {
 }
 
 type ADTooller interface {
+	// 添加单个用户
 	AddUser(disName, username, orgName, loginPwd, description string, disabled bool) error
+	// 删除单个用户
 	DelUser(disName, ouPath string) error
+	// 从主dn中查询
 	QueryUserFromBaseDN(filter string) (*ldap.SearchResult, error)
+	// 从指定dn中查询
 	QueryUser(dn, filter string, scope int) (*ldap.SearchResult, error)
 	ResetPasswd(uname, passwd, ouPath string) error
 	CheckAccount(username, password string)
