@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"omtools/adtools"
 	"omtools/zbxtools"
 	"os"
 
@@ -26,9 +27,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	BaseDN = "dc=0x1un,dc=io"
+)
+
 var (
 	cfgFile string
 	zbx     *zbxtools.ZbxTool
+	ad      adtools.ADTooller
 )
 
 // rootCmd represents the base command when called without any subcommands

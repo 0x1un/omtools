@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"omtools/adtools"
 	"omtools/zbxtools"
 	"strconv"
 	"strings"
@@ -82,21 +83,7 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("list",
 		readline.PcItem("host"),
 	),
-	readline.PcItem("mode",
-		readline.PcItem("vi"),
-		readline.PcItem("emacs"),
-	),
 	readline.PcItem("login"),
-	readline.PcItem("say",
-		readline.PcItemDynamic(listFiles("./"),
-			readline.PcItem("with",
-				readline.PcItem("following"),
-				readline.PcItem("items"),
-			),
-		),
-		readline.PcItem("hello"),
-		readline.PcItem("bye"),
-	),
 	readline.PcItem("bye"),
 	readline.PcItem("help"),
 )
@@ -105,12 +92,11 @@ func shellcmd(cmd *cobra.Command, args []string) {
 
 	// set line prompt
 	l, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[31m»\033[0m ",
-		HistoryFile:     "./readline.tmp",
-		AutoComplete:    completer,
-		InterruptPrompt: "^C",
-		EOFPrompt:       "exit",
-
+		Prompt:              "\033[31momtools »\033[0m ",
+		HistoryFile:         "./readline.tmp",
+		AutoComplete:        completer,
+		InterruptPrompt:     "^C",
+		EOFPrompt:           "exit",
 		HistorySearchFold:   true,
 		FuncFilterInputRune: filterInput,
 	})
@@ -144,14 +130,38 @@ func shellcmd(cmd *cobra.Command, args []string) {
 
 		line = strings.TrimSpace(line)
 		if line == "go zbx" {
-			url, username, password := getInputWithPromptui()
+		}
+		switch line {
+		case "go zbx":
+			url, username, password := getInputWithPromptui("")
 			zbx = zbxtools.NewZbxTool(fmt.Sprintf(zbxUrl, url), username, password)
+		case "go ad":
+			url, buser, bpass := getInputWithPromptui("ad")
+			ad, err = adtools.NewADTools(url, buser, bpass)
+			if err != nil {
+				fmt.Printf("failed connect to %s, err:%s\n", url, err.Error())
+			}
 		}
 		if zbx != nil {
 			zbxCmdHandler(line)
 		}
+		if ad != nil {
+			adCmdHandler(line)
+		}
 	}
 exit:
+}
+
+func adCmdHandler(line string) {
+	switch {
+	case line == "add single user":
+		disname, username, org, pwd, des, disabled := getUserInfo()
+		err := ad.AddUser(disname, username, org, pwd, des, disabled)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
 }
 
 func zbxCmdHandler(line string) {
