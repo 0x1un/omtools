@@ -18,19 +18,23 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"omtools/adtools"
 	"omtools/zbxtools"
-	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
 )
 
 const (
-	zbxUrl = "http://%s/api_jsonrpc.php"
+	zbxUrl      = "http://%s/api_jsonrpc.php"
+	cmdNotFound = "omtools: command not found: %s\n"
+)
+
+var (
+	mode = "ad"
 )
 
 // shellCmd represents the shell command
@@ -41,52 +45,15 @@ var shellCmd = &cobra.Command{
 	Run:   shellcmd,
 }
 
+var destory = func() {
+	if ad != nil {
+		ad.BuiltinConn().Close()
+	}
+}
+
 func init() {
 	rootCmd.AddCommand(shellCmd)
 }
-
-func usage(w io.Writer) {
-	_, _ = io.WriteString(w, "commands:\n")
-	_, _ = io.WriteString(w, completer.Tree("    "))
-}
-
-func filterInput(r rune) (rune, bool) {
-	switch r {
-	// block CtrlZ feature
-	case readline.CharCtrlZ:
-		return r, false
-	}
-	return r, true
-}
-
-// Function constructor - constructs new function for listing given directory
-func listFiles(path string) func(string) []string {
-	return func(line string) []string {
-		names := make([]string, 0)
-		files, _ := ioutil.ReadDir(path)
-		for _, f := range files {
-			names = append(names, f.Name())
-		}
-		return names
-	}
-}
-
-var completer = readline.NewPrefixCompleter(
-	readline.PcItem("query",
-		readline.PcItem("host", readline.PcItem("by")),
-		readline.PcItem("tpl", readline.PcItem("by")),
-		readline.PcItem("graph", readline.PcItem("by")),
-	),
-	readline.PcItem("go",
-		readline.PcItem("zbx"),
-		readline.PcItem("ad")),
-	readline.PcItem("list",
-		readline.PcItem("host"),
-	),
-	readline.PcItem("login"),
-	readline.PcItem("bye"),
-	readline.PcItem("help"),
-)
 
 func shellcmd(cmd *cobra.Command, args []string) {
 
@@ -135,21 +102,24 @@ func shellcmd(cmd *cobra.Command, args []string) {
 		case "go zbx":
 			url, username, password := getInputWithPromptui("")
 			zbx = zbxtools.NewZbxTool(fmt.Sprintf(zbxUrl, url), username, password)
+			mode = "zbx"
 		case "go ad":
 			url, buser, bpass := getInputWithPromptui("ad")
 			ad, err = adtools.NewADTools(url, buser, bpass)
 			if err != nil {
 				fmt.Printf("failed connect to %s, err:%s\n", url, err.Error())
 			}
+			mode = "ad"
 		}
-		if zbx != nil {
+		if mode == "zbx" && zbx != nil {
 			zbxCmdHandler(line)
 		}
-		if ad != nil {
+		if mode == "ad" && ad != nil {
 			adCmdHandler(line)
 		}
 	}
 exit:
+	destory()
 }
 
 func adCmdHandler(line string) {
@@ -158,9 +128,20 @@ func adCmdHandler(line string) {
 		disname, username, org, pwd, des, disabled := getUserInfo()
 		err := ad.AddUser(disname, username, org, pwd, des, disabled)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 			return
 		}
+	case strings.HasPrefix(line, "del user "):
+		if c := line[9:]; len(c) != 0 {
+			// TODO: search user and list them
+
+			// remove user
+		}
+	case line == "go ad":
+		fmt.Println("connect to ad server...")
+	case len(line) == 0:
+	default:
+		fmt.Printf(cmdNotFound, line)
 	}
 }
 
@@ -192,7 +173,8 @@ func zbxCmdHandler(line string) {
 		}
 	case line == "go zbx":
 		println("connect to zabbix server...")
+	case len(line) == 0:
 	default:
-		log.Println("you said:", strconv.Quote(line))
+		fmt.Printf(cmdNotFound, line)
 	}
 }
