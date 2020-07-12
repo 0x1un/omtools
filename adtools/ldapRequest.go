@@ -35,6 +35,8 @@ type ADTooller interface {
 	MoveUserMultiple(path, to string) Failed
 	BuiltinConn() *ldap.Conn
 	MoveUserAbsPath(from, to string) error
+	GetUserInfoFormat(user string) (string, error)
+	GetUserInfoTable(user string) (string, error)
 }
 
 func (c *adConn) BuiltinConn() *ldap.Conn {
@@ -74,8 +76,7 @@ func (c *adConn) AddUser(disName, username, orgName, loginPwd, description strin
 		if !ok {
 			return fmt.Errorf("unkown error: %s", err.Error())
 		}
-		msg := ldap.LDAPResultCodeMap[ldapErr.ResultCode]
-		return fmt.Errorf("dn: %s, msg: %s\n", disName, msg)
+		return fmt.Errorf("dn: %s, msg: %s\n", disName, ldapErr.Error())
 	}
 	fmt.Printf("added user: %s\n", disName)
 	return nil
@@ -116,7 +117,7 @@ func (c *adConn) QueryUser(dn, filter string, scope int) (*ldap.SearchResult, er
 		dn,
 		scope, ldap.NeverDerefAliases, 0, 0, false,
 		filter,
-		StringListWrap(""), nil)
+		StringListWrap("*"), nil)
 	res, err := c.Conn.Search(searchReq)
 	if err != nil {
 		return nil, err
