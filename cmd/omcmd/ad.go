@@ -11,13 +11,48 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-func getUserInfo() (disName string, username string, org string, pwd string, descpt string, disabled bool) {
-	validate := func(input string) error {
+var (
+	validate = func(input string) error {
 		if len(input) == 0 {
 			return errors.New("你必须输入这个值!")
 		}
 		return nil
 	}
+)
+
+func getOuPath() string {
+	p := promptui.Prompt{
+		Label:    "OU key",
+		Validate: validate,
+	}
+	res, err := p.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	queryRes, err := ad.QueryUser(BaseDN, adtools.Ft(adtools.OuWithoutDefaultOUFilter, res), ldap.ScopeWholeSubtree)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	list := []string{}
+
+	for _, v := range queryRes.Entries {
+		list = append(list, v.DN)
+	}
+	pSelect := promptui.Select{
+		Label: "请选择目标",
+		Items: list,
+	}
+	_, res, err = pSelect.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	idx := strings.Index(strings.ToLower(res), strings.ToLower(BaseDN))
+	res = res[:idx-1]
+	return res
+}
+
+func getUserInfo() (disName string, username string, org string, pwd string, descpt string, disabled bool) {
 	keys := []string{
 		"Display Name",
 		"Username",
