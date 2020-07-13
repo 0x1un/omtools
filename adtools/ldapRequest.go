@@ -4,6 +4,8 @@ package adtools
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
@@ -35,17 +37,26 @@ type ADTooller interface {
 	MoveUserMultiple(path, to string) Failed
 	BuiltinConn() *ldap.Conn
 	MoveUserAbsPath(from, to string) error
-	GetUserInfoFormat(user string) (string, error)
+	// GetUserInfoFormat(user string) (string, error)
 	GetUserInfoTable(user string) (string, error)
+	ExportTemplate(target string)
 }
 
 func (c *adConn) BuiltinConn() *ldap.Conn {
 	return c.Conn
 }
 
-func (c *adConn) UnlockUser()                 {}
-func (c *adConn) LockUser()                   {}
-func (c *adConn) ExportTemplate()             {}
+func (c *adConn) UnlockUser() {}
+func (c *adConn) LockUser()   {}
+func (c *adConn) ExportTemplate(target string) {
+	data := []byte(`姓名,批次,域账号,密码
+吕布,1001,lvbu,abc@12345
+刘备,1001,liubei,abc@12345`)
+	err := ioutil.WriteFile(target, data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 func (c *adConn) RemoveExpireComputerOnTime() {}
 
 // AddUser add a single user to specify ou
