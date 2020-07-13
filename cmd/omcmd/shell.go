@@ -34,7 +34,8 @@ const (
 )
 
 var (
-	mode = "ad"
+	mode        = ""
+	sessionInfo = map[string]string{}
 )
 
 // shellCmd represents the shell command
@@ -48,6 +49,7 @@ var shellCmd = &cobra.Command{
 var destory = func() {
 	if ad != nil {
 		ad.BuiltinConn().Close()
+		ad = nil
 	}
 }
 
@@ -96,13 +98,26 @@ func shellcmd(cmd *cobra.Command, args []string) {
 		}
 
 		line = strings.TrimSpace(line)
-		if line == "go zbx" {
-		}
 		switch line {
+		case "re con zbx":
+			if mode == "zbx" && zbx != nil && len(sessionInfo) != 0 {
+				zbx = zbxtools.NewZbxTool(fmt.Sprintf(zbxUrl, sessionInfo["zbxAddr"]), sessionInfo["zbxUser"], sessionInfo["zbxPwd"])
+			}
+
+		case "re con ad":
+			if mode == "ad" && ad != nil && len(sessionInfo) != 0 {
+				ad, err = adtools.NewADTools(sessionInfo["adAddr"], sessionInfo["adUser"], sessionInfo["adPwd"])
+				if err != nil {
+					fmt.Printf("failed connect to %s, err:%s\n", sessionInfo["adAddr"], err.Error())
+				}
+			}
 		case "go zbx":
 			url, username, password := getInputWithPromptui("")
 			zbx = zbxtools.NewZbxTool(fmt.Sprintf(zbxUrl, url), username, password)
 			mode = "zbx"
+			sessionInfo["zbxAddr"] = url
+			sessionInfo["zbxUser"] = username
+			sessionInfo["zbxPwd"] = password
 		case "go ad":
 			url, buser, bpass := getInputWithPromptui("ad")
 			ad, err = adtools.NewADTools(url, buser, bpass)
@@ -110,6 +125,9 @@ func shellcmd(cmd *cobra.Command, args []string) {
 				fmt.Printf("failed connect to %s, err:%s\n", url, err.Error())
 			}
 			mode = "ad"
+			sessionInfo["adAddr"] = url
+			sessionInfo["adUser"] = buser
+			sessionInfo["adPwd"] = bpass
 		}
 		if mode == "zbx" && zbx != nil {
 			zbxCmdHandler(line)
@@ -131,6 +149,33 @@ func adCmdHandler(line string) {
 			fmt.Println(err)
 			return
 		}
+	case strings.HasPrefix(line, "add user from "):
+		// TODO: 检查文件路径合法性
+		l := line[14:]
+		if len(l) == 0 {
+			println("请输入文件路径")
+			return
+		}
+		for _, e := range ad.AddUserMultiple(l, getOuPath(), false).Errors {
+			fmt.Println(e)
+		}
+	case strings.HasPrefix(line, "del user with "):
+		l := line[14:]
+		if len(l) == 0 {
+
+		}
+	case strings.HasPrefix(line, "query info "):
+		l := ""
+		if l = line[11:]; l == "all" {
+			l = "*"
+		}
+		res, err := ad.GetUserInfoTable(l)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println(res)
 	case strings.HasPrefix(line, "del user "):
 		if c := line[9:]; len(c) != 0 {
 			// TODO: search user and list them
@@ -139,6 +184,8 @@ func adCmdHandler(line string) {
 		}
 	case line == "go ad":
 		fmt.Println("connect to ad server...")
+	case line == "re con ad":
+		fmt.Println("reconnect to ad server...")
 	case len(line) == 0:
 	default:
 		fmt.Printf(cmdNotFound, line)
@@ -173,6 +220,8 @@ func zbxCmdHandler(line string) {
 		}
 	case line == "go zbx":
 		println("connect to zabbix server...")
+	case line == "re con zbx":
+		println("reconnect to zabbix server...")
 	case len(line) == 0:
 	default:
 		fmt.Printf(cmdNotFound, line)
