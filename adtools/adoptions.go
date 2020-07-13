@@ -9,7 +9,7 @@ const (
 	SAMAccountNameFilter      = "(sAMAccountName=%s)"
 	SAMAccountNameFuzzyFilter = "(sAMAccountName=*%s*)"
 	OuWithoutDefaultOUFilter  = "(&(objectClass=organizationalUnit)(ou=%s)(!(OU=Domain Controllers)))"
-	AllUserFilter             = "(&(objectClass=User)(objectCategory=Person))"
+	UserFilter                = "(&(objectClass=User)(objectCategory=Person)(|(CN=%s)(sAMAccountName=%s)))"
 )
 
 var (
