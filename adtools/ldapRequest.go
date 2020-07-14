@@ -29,25 +29,42 @@ type ADTooller interface {
 	QueryUserFromBaseDN(filter string) (*ldap.SearchResult, error)
 	// 从指定dn中查询
 	QueryUser(dn, filter string, scope int) (*ldap.SearchResult, error)
+	// 重置密码
 	ResetPasswd(uname, passwd, ouPath string) error
+	// 检测账户状态，是否可用
 	CheckAccount(username, password string)
+	// 从csv文件中添加用户
 	AddUserMultiple(importPath, orgName string, disabled bool) Failed
+	// 从csv文件中删除用户
 	DelUserMultiple(path, orgName string) Failed
+	// 移动用户
 	MoveUser(from, to string) error
+	// 移动csv文件中的用户
 	MoveUserMultiple(path, to string) Failed
+	// 内置可暴露ldap链接
 	BuiltinConn() *ldap.Conn
+	// 移动用户至绝对路径中
 	MoveUserAbsPath(from, to string) error
 	// GetUserInfoFormat(user string) (string, error)
+	// 获取用户信息并生成位可视table
 	GetUserInfoTable(user string) (string, error)
+	// 导出csv模板
 	ExportTemplate(target string)
+	// 解锁用户
+	ChangeUserStatus(dn string, disabled bool) error
 }
 
 func (c *adConn) BuiltinConn() *ldap.Conn {
 	return c.Conn
 }
 
-func (c *adConn) UnlockUser() {}
-func (c *adConn) LockUser()   {}
+// ChangeUserStatus 需要完整的dn路径，以及更改的状态
+func (c *adConn) ChangeUserStatus(dn string, disabled bool) error {
+	modifyReq := ldap.NewModifyRequest(dn, nil)
+	modifyReq.Replace("userAccountControl", Jdisable(disabled))
+	return c.Conn.Modify(modifyReq)
+}
+func (c *adConn) LockOrUnlockUser() {}
 func (c *adConn) ExportTemplate(target string) {
 	data := []byte(`姓名,批次,域账号,密码
 吕布,1001,lvbu,abc@12345
