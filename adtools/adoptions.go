@@ -10,6 +10,7 @@ const (
 	SAMAccountNameFuzzyFilter = "(sAMAccountName=*%s*)"
 	OuWithoutDefaultOUFilter  = "(&(objectClass=organizationalUnit)(ou=%s)(!(OU=Domain Controllers)))"
 	UserFilter                = "(&(objectClass=User)(objectCategory=Person)(|(CN=%s)(sAMAccountName=%s)))"
+	LockedAllUserFilter       = "(&(objectCategory=Person)(objectClass=User)(lockoutTime>=1))"
 )
 
 var (
