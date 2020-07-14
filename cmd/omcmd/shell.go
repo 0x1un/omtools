@@ -176,6 +176,16 @@ func adCmdHandler(line string) {
 		}
 
 		fmt.Println(res)
+
+	case strings.HasPrefix(line, "dis ") || strings.HasPrefix(line, "ena "):
+		l := line[4:]
+		if len(l) != 0 {
+			l = strings.TrimSpace(l)
+			err := changeStatus(l, line[:3] == "dis")
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
 	case strings.HasPrefix(line, "del user "):
 		if c := line[9:]; len(c) != 0 {
 			// TODO: search user and list them

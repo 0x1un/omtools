@@ -20,6 +20,25 @@ var (
 	}
 )
 
+func changeStatus(user string, disabled bool) error {
+	if user == "" {
+		return errors.New("user cannot be empty")
+	}
+	res, err := ad.QueryUser(BaseDN, adtools.Ft(adtools.UserFilter, user, user), ldap.ScopeWholeSubtree)
+	if err != nil {
+		return err
+	}
+	for _, v := range res.Entries {
+		if strings.Contains(v.DN, user) || strings.Contains(v.GetAttributeValue("sAMAccountName"), user) {
+			err := ad.ChangeUserStatus(v.DN, disabled)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func getOuPath() string {
 	p := promptui.Prompt{
 		Label:    "OU key",
