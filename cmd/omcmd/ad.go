@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"omtools/adtools"
 	"strings"
 
@@ -19,6 +20,30 @@ var (
 		return nil
 	}
 )
+
+func unlockUser(user string) error {
+	if user == "" {
+		return errors.New("user cannot be empty")
+	}
+	res, err := ad.QueryUser(BaseDN, adtools.LockedAllUserFilter, ldap.ScopeWholeSubtree)
+	if err != nil {
+		return err
+	}
+	for _, v := range res.Entries {
+		x := strings.Split(strings.ToLower(v.DN), ",")
+		if len(x) > 0 {
+			if x[0] == "cn="+user || x[0] == "sAMAccountName="+user {
+				err := ad.UnlockUser(v.DN)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("unlock user: %s\n", v.DN)
+				return nil
+			}
+		}
+	}
+	return nil
+}
 
 func changeStatus(user string, disabled bool) error {
 	if user == "" {
@@ -135,4 +160,77 @@ func getUserInfo() (disName string, username string, org string, pwd string, des
 	descpt = info[4]
 	disabled = info[5] == "y"
 	return
+}
+
+func adCmdHandler(line string) {
+	switch {
+	case line == "add single user":
+		disname, username, org, pwd, des, disabled := getUserInfo()
+		err := ad.AddUser(disname, username, org, pwd, des, disabled)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	case strings.HasPrefix(line, "add user from "):
+		// TODO: 检查文件路径合法性
+		l := line[14:]
+		if len(l) == 0 {
+			println("请输入文件路径")
+			return
+		}
+		for _, e := range ad.AddUserMultiple(l, getOuPath(), false).Errors {
+			fmt.Println(e)
+		}
+	case strings.HasPrefix(line, "del user with "):
+		l := line[14:]
+		if len(l) == 0 {
+
+		}
+	case strings.HasPrefix(line, "query info "):
+		l := ""
+		if l = line[11:]; l == "all" {
+			l = "*"
+		}
+		res, err := ad.GetUserInfoTable(l)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println(res)
+	case strings.HasPrefix(line, "query user by "):
+		// 以某种关键字筛选用户: 锁定状态、登入次数、激活状态
+
+	case strings.HasPrefix(line, "dis ") || strings.HasPrefix(line, "ena "):
+		l := line[4:]
+		if len(l) != 0 {
+			l = strings.TrimSpace(l)
+			err := changeStatus(l, line[:3] == "dis")
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
+	case strings.HasPrefix(line, "unlock "):
+		l := line[7:]
+		if len(l) != 0 {
+			l = strings.TrimSpace(l)
+			if err := unlockUser(l); err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+		}
+	case strings.HasPrefix(line, "del user "):
+		if c := line[9:]; len(c) != 0 {
+			// TODO: search user and list them
+
+			// remove user
+		}
+	case line == "go ad":
+		fmt.Println("connect to ad server...")
+	case line == "re con ad":
+		fmt.Println("reconnect to ad server...")
+	case len(line) == 0:
+	default:
+		fmt.Printf(cmdNotFound, line)
+	}
 }
