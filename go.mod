@@ -13,7 +13,7 @@ require (
 	github.com/pelletier/go-toml v1.8.0 // indirect
 	github.com/qiniu/iconv v1.2.0
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
-	github.com/sirupsen/logrus v1.6.0 // indirect
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/afero v1.3.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.0.0
