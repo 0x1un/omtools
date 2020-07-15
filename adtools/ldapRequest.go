@@ -50,8 +50,10 @@ type ADTooller interface {
 	GetUserInfoTable(user string) (string, error)
 	// 导出csv模板
 	ExportTemplate(target string)
-	// 解锁用户
+	// 禁用或启用用户
 	ChangeUserStatus(dn string, disabled bool) error
+	// 解锁或锁定用户
+	UnlockUser(dn string) error
 }
 
 func (c *adConn) BuiltinConn() *ldap.Conn {
@@ -64,7 +66,19 @@ func (c *adConn) ChangeUserStatus(dn string, disabled bool) error {
 	modifyReq.Replace("userAccountControl", Jdisable(disabled))
 	return c.Conn.Modify(modifyReq)
 }
-func (c *adConn) LockOrUnlockUser() {}
+
+func (c *adConn) UnlockUser(dn string /*, locked bool*/) error {
+	// currentTime := (time.Now().Unix() * 10000000) + 116444736000000000
+	// unlock
+	// if !locked {
+	// 	currentTime = 0
+	// }
+	// ct := strconv.Itoa(int(currentTime))
+	modifyReq := ldap.NewModifyRequest(dn, nil)
+	modifyReq.Replace("lockoutTime", StringListWrap("0"))
+	return c.Conn.Modify(modifyReq)
+
+}
 func (c *adConn) ExportTemplate(target string) {
 	data := []byte(`姓名,批次,域账号,密码
 吕布,1001,lvbu,abc@12345
