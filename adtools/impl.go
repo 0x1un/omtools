@@ -42,16 +42,22 @@ func (c *adConn) GetUserInfoTable(user string) (string, error) {
 	}
 	tb := table.NewWriter()
 	tb.AppendHeader(table.Row{
-		"姓名", "账户", "创建时间",
-		"最后更改时间", "用户激活状态",
-		"密码错误次数", "最后登入时间",
+		"姓名", "账户", "创建时间", "锁定状态",
+		"更改时间", "激活状态",
+		"密码错误", "登入时间",
 		/*"最后登出时间",*/ "登入次数",
-		"用户DN路径", "下次登入改密码"})
+		"用户路径", "登入改密"})
 	for _, v := range res.Entries {
 		tb.AppendRow([]interface{}{
 			v.GetAttributeValue("cn"),
 			v.GetAttributeValue("sAMAccountName"),
 			parseDatetime2Humman(v.GetAttributeValue("whenCreated")),
+			func(a string) string {
+				if a == "" || a == "0" {
+					return "No"
+				}
+				return "Yes"
+			}(v.GetAttributeValue("lockoutTime")),
 			parseDatetime2Humman(v.GetAttributeValue("whenChanged")),
 			func(a string) string {
 				switch a {
