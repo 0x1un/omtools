@@ -31,8 +31,9 @@ func unlockUser(user string) error {
 	}
 	for _, v := range res.Entries {
 		x := strings.Split(strings.ToLower(v.DN), ",")
+		// 判断DN路径最顶部的值是否为user
 		if len(x) > 0 {
-			if x[0] == "cn="+user || x[0] == "sAMAccountName="+user {
+			if x[0] == strings.ToLower("cn="+user) {
 				err := ad.UnlockUser(v.DN)
 				if err != nil {
 					return err
@@ -54,10 +55,21 @@ func changeStatus(user string, disabled bool) error {
 		return err
 	}
 	for _, v := range res.Entries {
-		if strings.Contains(v.DN, user) || strings.Contains(v.GetAttributeValue("sAMAccountName"), user) {
-			err := ad.ChangeUserStatus(v.DN, disabled)
-			if err != nil {
-				return err
+		x := strings.Split(strings.ToLower(v.DN), ",")
+		// 判断DN路径最顶部的值是否为user
+		if len(x) > 0 {
+			if x[0] == strings.ToLower("cn="+user) {
+				err := ad.ChangeUserStatus(v.DN, disabled)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("change status: %s: %s", user, func(a bool) string {
+					if a == false {
+						return "Enabled"
+					}
+					return "Disabled"
+				}(disabled))
+				return nil
 			}
 		}
 	}
@@ -98,12 +110,7 @@ func getOuPath() string {
 
 func getUserInfo() (disName string, username string, org string, pwd string, descpt string, disabled bool) {
 	keys := []string{
-		"Display Name",
-		"Username",
-		"Organization",
-		"Password",
-		"Description",
-		"Disable",
+		"Display Name", "Username", "Organization", "Password", "Description", "Disable",
 	}
 	info := []string{}
 	for i := 0; i < 6; i++ {
@@ -218,12 +225,6 @@ func adCmdHandler(line string) {
 				fmt.Println(err.Error())
 				return
 			}
-		}
-	case strings.HasPrefix(line, "del user "):
-		if c := line[9:]; len(c) != 0 {
-			// TODO: search user and list them
-
-			// remove user
 		}
 	case line == "go ad":
 		fmt.Println("connect to ad server...")

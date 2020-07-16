@@ -68,12 +68,6 @@ func (c *adConn) ChangeUserStatus(dn string, disabled bool) error {
 }
 
 func (c *adConn) UnlockUser(dn string /*, locked bool*/) error {
-	// currentTime := (time.Now().Unix() * 10000000) + 116444736000000000
-	// unlock
-	// if !locked {
-	// 	currentTime = 0
-	// }
-	// ct := strconv.Itoa(int(currentTime))
 	modifyReq := ldap.NewModifyRequest(dn, nil)
 	modifyReq.Replace("lockoutTime", StringListWrap("0"))
 	return c.Conn.Modify(modifyReq)
