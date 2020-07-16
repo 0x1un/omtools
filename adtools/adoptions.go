@@ -11,6 +11,8 @@ const (
 	OuWithoutDefaultOUFilter  = "(&(objectClass=organizationalUnit)(ou=%s)(!(OU=Domain Controllers)))"
 	UserFilter                = "(&(objectClass=User)(objectCategory=Person)(|(CN=%s)(sAMAccountName=%s)))"
 	LockedAllUserFilter       = "(&(objectCategory=Person)(objectClass=User)(lockoutTime>=1))"
+	ComputerFilter            = "(&(objectClass=computer)(objectCategory=Computer))"
+	ExpiredComputerFilter     = "(&(objectClass=computer)(objectCategory=Computer)(!accountExpires=9223372036854775807))"
 )
 
 var (
