@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"omtools/adtools"
+	"strconv"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-ldap/ldap/v3"
@@ -169,6 +171,18 @@ func getUserInfo() (disName string, username string, org string, pwd string, des
 	return
 }
 
+func resetPasswd(user, passwd string) error {
+	// res, err := ad.QueryUser(BaseDN, adtools.UserFilter, ldap.ScopeWholeSubtree)
+	// if err != nil {
+	// 	return err
+	// }
+	// for _, v := range res.Entries {
+
+	// }
+	// ad.ResetPasswd(user, passwd, oupath)
+	return nil
+}
+
 func adCmdHandler(line string) {
 	switch {
 	case line == "add single user":
@@ -188,11 +202,6 @@ func adCmdHandler(line string) {
 		for _, e := range ad.AddUserMultiple(l, getOuPath(), false).Errors {
 			fmt.Println(e)
 		}
-	case strings.HasPrefix(line, "del user with "):
-		l := line[14:]
-		if len(l) == 0 {
-
-		}
 	case strings.HasPrefix(line, "query info "):
 		l := ""
 		if l = line[11:]; l == "all" {
@@ -205,8 +214,6 @@ func adCmdHandler(line string) {
 		}
 
 		fmt.Println(res)
-	case strings.HasPrefix(line, "query user by "):
-		// 以某种关键字筛选用户: 锁定状态、登入次数、激活状态
 
 	case strings.HasPrefix(line, "dis ") || strings.HasPrefix(line, "ena "):
 		l := line[4:]
@@ -226,6 +233,45 @@ func adCmdHandler(line string) {
 				return
 			}
 		}
+	case strings.HasPrefix(line, "query expire user where day"):
+		l := line[27:]
+		tb := table.NewWriter()
+		tb.AppendHeader(table.Row{"姓名", "账号", "最后登入"})
+		if len(l) >= 2 {
+			l = strings.TrimSpace(l)
+			op := string(l[0])
+			var d int
+			var err error
+			if len(l) == 3 {
+				op = l[:2]
+				day := l[2:]
+				d, err = strconv.Atoi(day)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+			}
+
+			res, err := ad.GetOfflineUserByDay(d, op, BaseDN)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			for _, v := range res {
+				tb.AppendRow([]interface{}{
+					func(s string) string {
+						if s == "" {
+							return v.GetAttributeValue("sAMAccountName")
+						}
+						return s
+					}(v.GetAttributeValue("displayName")),
+					v.GetAttributeValue("sAMAccountName"),
+					adtools.FormatWinNTime2String(v.GetAttributeValue("lastLogon")),
+				})
+				tb.AppendSeparator()
+			}
+		}
+		fmt.Println(tb.Render())
 	case line == "go ad":
 		fmt.Println("connect to ad server...")
 	case line == "re con ad":
