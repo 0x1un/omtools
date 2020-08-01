@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/manifoldco/promptui"
@@ -54,6 +56,8 @@ type ADTooller interface {
 	ChangeUserStatus(dn string, disabled bool) error
 	// 解锁或锁定用户
 	UnlockUser(dn string) error
+
+	GetOfflineUserByDay(day int, op, baseDN string) ([]*ldap.Entry, error)
 }
 
 func (c *adConn) BuiltinConn() *ldap.Conn {
@@ -82,7 +86,55 @@ func (c *adConn) ExportTemplate(target string) {
 		log.Fatal(err)
 	}
 }
-func (c *adConn) RemoveExpireComputerOnTime() {}
+
+// GetOfflineUserByDay 根据指定的天数获取在此期间为登入过的用户
+func (c *adConn) GetOfflineUserByDay(day int, op, baseDN string) ([]*ldap.Entry, error) {
+	res, err := c.QueryUser(baseDN, Ft(UserFilter, "*", "*"), ldap.ScopeWholeSubtree)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().Unix()
+	ret := make([]*ldap.Entry, 0)
+	for _, v := range res.Entries {
+		lastLogon := v.GetAttributeValue("lastLogon")
+		lastL, err := strconv.ParseInt(lastLogon, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		if lastL == 0 {
+			continue
+		}
+		unixTime := convertWinNTTime2UnixFromInt64(lastL).Unix()
+		if tm := now - unixTime; tm != 0 {
+			expireTime := time.Unix(tm, 0)
+			et := expireTime.Day()
+			switch op {
+			case "=":
+				if et == day {
+					ret = append(ret, v)
+				}
+			case "<":
+				if et < day {
+					ret = append(ret, v)
+				}
+			case ">":
+				if et > day {
+					ret = append(ret, v)
+				}
+			case ">=":
+				if et >= day {
+					ret = append(ret, v)
+				}
+			case "<=":
+				if et <= day {
+					ret = append(ret, v)
+				}
+			}
+		}
+	}
+
+	return ret, nil
+}
 
 // AddUser add a single user to specify ou
 // orgName mut be "ou=01,ou=om"
