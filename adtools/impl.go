@@ -104,6 +104,15 @@ func convertWinNTTime2Unix(tm string) string {
 	return (tim.Format("2006-01-02 15:04:05"))
 }
 
+func FormatWinNTime2String(tm string) string {
+	return convertWinNTTime2Unix(tm)
+}
+
+func convertWinNTTime2UnixFromInt64(tm int64) time.Time {
+	tm = (tm / 10000000) - 11644473600
+	return time.Unix(tm, 0)
+}
+
 func parseDatetime2Humman(tm string) string {
 	t, err := time.Parse("20060102150405.0Z", tm)
 	if err != nil {
