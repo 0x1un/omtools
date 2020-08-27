@@ -11,7 +11,7 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-func Run(config, prefix string) {
+func Run(config, prefix string) error {
 	wg := sync.WaitGroup{}
 	cfg, err := ini.Load(config)
 	if err != nil {
@@ -23,7 +23,7 @@ func Run(config, prefix string) {
 	if _, err := os.Stat(graphPrefix); os.IsNotExist(err) {
 		err := os.Mkdir(graphPrefix, 0777)
 		if err != nil {
-			logrus.Fatal(err)
+			return err
 		}
 	}
 	general := cfg.Section("GENERAL")
@@ -33,7 +33,7 @@ func Run(config, prefix string) {
 		general.Key("ZBX_PASSWORD").String())
 	err = session.Login()
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	for _, section := range cfg.Sections() {
 		if section.Name() == "Default" || len(section.KeysHash()) == 0 || section.Name() == "GENERAL" {
@@ -43,7 +43,7 @@ func Run(config, prefix string) {
 		if _, err := os.Stat(graphLocalPath); os.IsNotExist(err) {
 			err := os.Mkdir(graphLocalPath, 0777)
 			if err != nil {
-				logrus.Fatal(err)
+				return err
 			}
 		}
 		wg.Add(len(section.KeysHash()))
@@ -51,11 +51,11 @@ func Run(config, prefix string) {
 			go func(n, g string) {
 				data, err := session.DownloadTrafficGraph(g, general.Key("TIME_FROM").String(), general.Key("TIME_TO").String())
 				if err != nil {
-					logrus.Fatal(err)
+					logrus.Println(err)
 				}
 				err = ioutil.WriteFile(graphLocalPath+"/"+n+".png", data, 0644)
 				if err != nil {
-					logrus.Fatal(err)
+					logrus.Println(err)
 				}
 				wg.Done()
 			}(name, graphid)
@@ -65,6 +65,7 @@ func Run(config, prefix string) {
 	fmt.Print("Press 'Enter' to continue...")
 	_, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
+	return nil
 }
