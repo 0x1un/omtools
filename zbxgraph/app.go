@@ -1,7 +1,6 @@
 package zbxgraph
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -63,10 +62,6 @@ func Run(config, prefix string) error {
 		}
 		wg.Wait()
 	}
-	fmt.Print("Press 'Enter' to continue...")
-	_, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
-	if err != nil {
-		return err
-	}
+
 	return nil
 }

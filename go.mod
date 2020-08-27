@@ -3,7 +3,7 @@ module github.com/0x1un/omtools
 go 1.14
 
 require (
-	github.com/antlr/antlr4 v0.0.0-20200820155224-be881fa6b91d
+	github.com/0x1un/go-zabbix v0.0.0-20200827032110-55a3691705e6
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-ldap/ldap/v3 v3.2.1
