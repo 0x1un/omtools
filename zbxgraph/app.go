@@ -3,6 +3,7 @@ package zbxgraph
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"sync"
 
@@ -10,7 +11,7 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-func Run(config, prefix string) error {
+func Run(config, prefix string, randName bool) error {
 	wg := sync.WaitGroup{}
 	cfg, err := ini.Load(config)
 	if err != nil {
@@ -53,7 +54,11 @@ func Run(config, prefix string) error {
 				if err != nil {
 					logrus.Println(err)
 				}
-				err = ioutil.WriteFile(graphLocalPath+"/"+n+".png", data, 0644)
+				rn := ""
+				if randName {
+					rn = fmt.Sprintf("%d", rand.Int())
+				}
+				err = ioutil.WriteFile(graphLocalPath+"/"+n+rn+".png", data, 0644)
 				if err != nil {
 					logrus.Println(err)
 				}

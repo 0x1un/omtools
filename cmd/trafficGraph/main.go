@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	if err := g.Run("init.ini", "./graph/"); err != nil {
+	if err := g.Run("init.ini", "./graph/", false); err != nil {
 		logrus.Fatal(err)
 	}
 	fmt.Print("Press 'Enter' to continue...")
