@@ -10,7 +10,7 @@ package test
 
 // 	"github.com/0x1un/omtools/parser/zbxcsv"
 
-// 	"github.com/0x1un/omtools/go-zabbix"
+// 	"github.com/0x1un/go-zabbix"
 
 // 	"github.com/antlr/antlr4/runtime/Go/antlr"
 // )

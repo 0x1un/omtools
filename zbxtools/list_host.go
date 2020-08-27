@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/0x1un/omtools/go-zabbix"
+	"github.com/0x1un/go-zabbix"
 )
 
 type hostinfo struct {

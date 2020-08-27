@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/0x1un/omtools/go-zabbix"
+	"github.com/0x1un/go-zabbix"
 )
 
 type zbxGraph struct {

@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/0x1un/omtools/go-zabbix"
+	"github.com/0x1un/go-zabbix"
 
 	"github.com/sirupsen/logrus"
 )

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/0x1un/omtools/go-zabbix"
+	"github.com/0x1un/go-zabbix"
 
 	"github.com/pkg/errors"
 )
