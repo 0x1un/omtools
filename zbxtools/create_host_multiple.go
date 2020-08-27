@@ -4,10 +4,11 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log"
-	"omtools/go-zabbix"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/0x1un/omtools/go-zabbix"
 
 	"github.com/pkg/errors"
 )

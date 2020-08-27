@@ -1,7 +1,7 @@
 package main
 
 import (
-	g "omtools/zbxgraph"
+	g "github.com/0x1un/omtools/zbxgraph"
 
 	"github.com/sirupsen/logrus"
 )

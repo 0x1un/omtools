@@ -2,7 +2,8 @@ package zbxtools
 
 import (
 	"io/ioutil"
-	"omtools/go-zabbix"
+
+	"github.com/0x1un/omtools/go-zabbix"
 )
 
 type ZbxTool struct {

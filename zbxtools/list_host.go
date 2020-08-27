@@ -2,8 +2,9 @@ package zbxtools
 
 import (
 	"fmt"
-	"omtools/go-zabbix"
 	"strings"
+
+	"github.com/0x1un/omtools/go-zabbix"
 )
 
 type hostinfo struct {

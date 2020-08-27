@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"omtools/go-zabbix"
 	"strings"
+
+	"github.com/0x1un/omtools/go-zabbix"
 
 	"github.com/sirupsen/logrus"
 )

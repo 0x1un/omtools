@@ -2,8 +2,9 @@ package zbxtools
 
 import (
 	"fmt"
-	"omtools/go-zabbix"
 	"strings"
+
+	"github.com/0x1un/omtools/go-zabbix"
 )
 
 func (z *ZbxTool) ListGroup(key string) (map[string]string, error) {

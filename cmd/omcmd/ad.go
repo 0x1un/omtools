@@ -3,9 +3,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"omtools/adtools"
 	"strconv"
 	"strings"
+
+	"github.com/0x1un/omtools/adtools"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	log "github.com/sirupsen/logrus"

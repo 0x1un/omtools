@@ -36,7 +36,8 @@ func Run(config, prefix string) error {
 		return err
 	}
 	for _, section := range cfg.Sections() {
-		if section.Name() == "Default" || len(section.KeysHash()) == 0 || section.Name() == "GENERAL" {
+		if section.Name() == "Default" || len(section.KeysHash()) == 0 ||
+			section.Name() == "GENERAL" || section.Name() == "INSPECTION" {
 			continue
 		}
 		graphLocalPath := graphPrefix + section.Name()

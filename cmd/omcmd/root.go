@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"omtools/adtools"
-	"omtools/zbxtools"
 	"os"
+
+	"github.com/0x1un/omtools/adtools"
+
+	"github.com/0x1un/omtools/zbxtools"
 
 	"github.com/spf13/cobra"
 

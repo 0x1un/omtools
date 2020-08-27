@@ -3,8 +3,9 @@ package zbxgraph
 import (
 	"fmt"
 	"log"
-	"omtools/go-zabbix"
 	"strings"
+
+	"github.com/0x1un/omtools/go-zabbix"
 )
 
 type zbxGraph struct {

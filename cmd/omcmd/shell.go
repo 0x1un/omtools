@@ -3,9 +3,10 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"omtools/adtools"
-	"omtools/zbxtools"
 	"strings"
+
+	"github.com/0x1un/omtools/adtools"
+	"github.com/0x1un/omtools/zbxtools"
 
 	log "github.com/sirupsen/logrus"
 
