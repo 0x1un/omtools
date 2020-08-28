@@ -11,8 +11,10 @@ import (
 )
 
 func main() {
-	if err := g.Run("init.ini", "./graph/", false); err != nil {
+	if outFile, err := g.Run("init.ini", "graph/", true); err != nil {
 		logrus.Fatal(err)
+	} else {
+		fmt.Println(outFile)
 	}
 	fmt.Print("Press 'Enter' to continue...")
 	_, err := bufio.NewReader(os.Stdin).ReadBytes('\n')
