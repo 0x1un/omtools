@@ -11,7 +11,7 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-func Run(config, prefix string, randName bool) error {
+func Run(config, prefix string, randName bool) (map[string][]string, error) {
 	wg := sync.WaitGroup{}
 	cfg, err := ini.Load(config)
 	if err != nil {
@@ -23,7 +23,7 @@ func Run(config, prefix string, randName bool) error {
 	if _, err := os.Stat(graphPrefix); os.IsNotExist(err) {
 		err := os.Mkdir(graphPrefix, 0777)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	general := cfg.Section("GENERAL")
@@ -33,8 +33,9 @@ func Run(config, prefix string, randName bool) error {
 		general.Key("ZBX_PASSWORD").String())
 	err = session.Login()
 	if err != nil {
-		return err
+		return nil, err
 	}
+	outputMap := map[string][]string{}
 	for _, section := range cfg.Sections() {
 		if section.Name() == "Default" || len(section.KeysHash()) == 0 ||
 			section.Name() == "GENERAL" || section.Name() == "INSPECTION" {
@@ -44,7 +45,7 @@ func Run(config, prefix string, randName bool) error {
 		if _, err := os.Stat(graphLocalPath); os.IsNotExist(err) {
 			err := os.Mkdir(graphLocalPath, 0777)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		wg.Add(len(section.KeysHash()))
@@ -58,15 +59,17 @@ func Run(config, prefix string, randName bool) error {
 				if randName {
 					rn = fmt.Sprintf("%d", rand.Int())
 				}
-				err = ioutil.WriteFile(graphLocalPath+"/"+n+rn+".png", data, 0644)
+				outputFile := graphLocalPath + "/" + n + "-" + rn + ".png"
+				err = ioutil.WriteFile(outputFile, data, 0644)
 				if err != nil {
 					logrus.Println(err)
 				}
+				outputMap[n] = append(outputMap[n], outputFile)
 				wg.Done()
 			}(name, graphid)
 		}
 		wg.Wait()
 	}
 
-	return nil
+	return outputMap, nil
 }
