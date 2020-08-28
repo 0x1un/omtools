@@ -11,7 +11,7 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-func Run(config, prefix string, randName bool) (map[string][]string, error) {
+func Run(config interface{}, prefix string, randName bool) (map[string][]string, error) {
 	wg := sync.WaitGroup{}
 	cfg, err := ini.Load(config)
 	if err != nil {
