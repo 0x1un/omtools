@@ -8,6 +8,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-ldap/ldap/v3 v3.2.1
 	github.com/jedib0t/go-pretty/v6 v6.0.4
+	github.com/jlaffaye/ftp v0.0.0-20200812143550-39e3779af0db
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
