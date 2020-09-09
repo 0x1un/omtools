@@ -79,34 +79,59 @@ func (*swbka) readConfig(path string) (map[string]mulparam, error) {
 	return mp, nil
 }
 
-// downloadSwitchCfg 批量下载交换机配置文件, 简单粗暴直接两个WaitGroup
+// Deprecated: use downloadSwitchCfg instead.
+func downloadFunc(s *swbka, wg *sync.WaitGroup, secName string, mulP mulparam) {
+	if _, err := os.Stat(secName); os.IsNotExist(err) {
+		err := os.Mkdir(secName, 0644)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	}
+	for _, profile := range mulP.profiles {
+		go func(sn string, pf param) {
+			// err := s.downloadFile(sn, pf)
+			err := s.downloadFileMock(sn, pf)
+			wg.Done()
+			if err != nil {
+				logrus.Errorln(err)
+			}
+		}(secName, profile)
+	}
+}
+
+func (s *swbka) downloadFileMock(sn string, p param) error {
+	fmt.Println(p.ip)
+	time.Sleep(2 * time.Second)
+	return nil
+}
+
+func createDirIfNotExist(dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.Mkdir(dir, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// downloadSwitchCfg 批量下载交换机配置文件
 func (s *swbka) downloadSwitchCfg(sws map[string]mulparam) {
 	wgp := sync.WaitGroup{}
-	wgp.Add(len(sws))
-	for secN, mulP := range sws {
-		go func(secName string, mulP mulparam) {
+	for secName, mulP := range sws {
+		if err := createDirIfNotExist(secName); err != nil {
+			logrus.Fatal(err)
+		}
 
-			if _, err := os.Stat(secName); os.IsNotExist(err) {
-				err := os.Mkdir(secName, 0644)
-				if err != nil {
-					logrus.Fatal(err)
+		wgp.Add(len(mulP.profiles))
+
+		for _, profile := range mulP.profiles {
+			go func(sn string, pf param) {
+				if err := s.downloadFile(sn, pf); err != nil {
+					logrus.Errorln(err)
 				}
-			}
-			wg := sync.WaitGroup{}
-			wg.Add(len(mulP.profiles))
-			for _, profile := range mulP.profiles {
-				go func(sn string, pf param) {
-					// err := downloadFileMock(sn, pf)
-					err := s.downloadFile(sn, pf)
-					if err != nil {
-						logrus.Errorln(err)
-					}
-					wg.Done()
-				}(secName, profile)
-			}
-			wg.Wait()
-			wgp.Done()
-		}(secN, mulP)
+				wgp.Done()
+			}(secName, profile)
+		}
 	}
 	wgp.Wait()
 }
@@ -211,6 +236,7 @@ func checkSum(content []byte) string {
 }
 
 func main() {
+	start := time.Now()
 	swb := &swbka{
 		sumFile: "./cfg.sum",
 		sumMap:  make(map[string]string),
@@ -224,4 +250,5 @@ func main() {
 		logrus.Fatal(err)
 	}
 	swb.downloadSwitchCfg(ret)
+	fmt.Printf("time count: %ds\n", time.Now().Second()-start.Second())
 }
