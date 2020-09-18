@@ -1,0 +1,7 @@
+[Unit]
+Description=swbka timer
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=12h
+Unit=swbka.service

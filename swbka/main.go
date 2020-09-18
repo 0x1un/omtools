@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"crypto/md5"
-	"encoding/hex"
+	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,13 +11,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0x1un/omtools/swbka/glimit"
 	"github.com/jlaffaye/ftp"
 	"github.com/sirupsen/logrus"
+	"github.com/studio-b12/gowebdav"
 	"gopkg.in/ini.v1"
 )
 
+// 通用变量初始化
 var (
-	timeFormat = "20060102"
+	timeFormat = "20060102_15_04"
+	webdavURI  = flag.String("webdavuri", "http://10.100.100.242/dav", "webdav uri")
+	webdavUSER = flag.String("webdavuser", "swbka@public.com", "webdav username")
+	webdavPWD  = flag.String("webdavpass", "G9apckB4rcApHxEEhIr72dKJg7jd1PPf", "webdav password")
+	configPath = flag.String("c", "/etc/swbka/profile.ini", "config file location")
+)
+
+// 错误类型初始化
+var (
+// diaWebdavErr
 )
 
 type param struct {
@@ -34,19 +46,29 @@ type mulparam struct {
 // swbka: 入口结构
 type swbka struct {
 	sumFile string
-	sumMap  map[string]string
+	// sumMap  map[string]string
+	sumMap sync.Map
+	wd     *gowebdav.Client
+}
+
+func (s *swbka) pushConfig2Webdav(buf []byte, path string) error {
+	return s.wd.Write(path, buf, 0644)
 }
 
 // readConfig 读取配置文件
 func (*swbka) readConfig(path string) (map[string]mulparam, error) {
 	mp := make(map[string]mulparam)
-	cfg, err := ini.LoadSources(ini.LoadOptions{SkipUnrecognizableLines: true, IgnoreInlineComment: true}, path)
+	cfg, err := ini.LoadSources(
+		ini.LoadOptions{SkipUnrecognizableLines: true,
+			IgnoreInlineComment: true},
+		path)
 	if err != nil {
 		return nil, err
 	}
 	pubUser := cfg.Section("general").Key("pub_user").String()
 	pubPass := cfg.Section("general").Key("pub_pass").String()
 	pubTarget := cfg.Section("general").Key("pub_target").String()
+	pubPort := cfg.Section("general").Key("pub_port").String()
 	if pubTarget == "" {
 		pubTarget = "startup.cfg"
 	}
@@ -60,14 +82,14 @@ func (*swbka) readConfig(path string) (map[string]mulparam, error) {
 			strList := strings.Split(loginStr, ",")
 			if len(strList) == 3 {
 				m.profiles = append(m.profiles, param{
-					ip:       ip,
+					ip:       ip + pubPort,
 					username: strList[0],
 					password: strList[1],
 					target:   []string{strList[2]},
 				})
 			} else {
 				m.profiles = append(m.profiles, param{
-					ip:       ip,
+					ip:       ip + pubPort,
 					username: pubUser,
 					password: pubPass,
 					target:   strings.Split(pubTarget, ","),
@@ -79,57 +101,29 @@ func (*swbka) readConfig(path string) (map[string]mulparam, error) {
 	return mp, nil
 }
 
-// Deprecated: use downloadSwitchCfg instead.
-func downloadFunc(s *swbka, wg *sync.WaitGroup, secName string, mulP mulparam) {
-	if _, err := os.Stat(secName); os.IsNotExist(err) {
-		err := os.Mkdir(secName, 0644)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-	}
-	for _, profile := range mulP.profiles {
-		go func(sn string, pf param) {
-			// err := s.downloadFile(sn, pf)
-			err := s.downloadFileMock(sn, pf)
-			wg.Done()
-			if err != nil {
-				logrus.Errorln(err)
-			}
-		}(secName, profile)
-	}
-}
-
+// downloadFileMock 模拟下载 测试使用
 func (s *swbka) downloadFileMock(sn string, p param) error {
 	fmt.Println(p.ip)
 	time.Sleep(2 * time.Second)
 	return nil
 }
 
-func createDirIfNotExist(dir string) error {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if err := os.Mkdir(dir, 0644); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // downloadSwitchCfg 批量下载交换机配置文件
 func (s *swbka) downloadSwitchCfg(sws map[string]mulparam) {
-	wgp := sync.WaitGroup{}
+	// 最多同时允许100台配置的下载, 超过100台使其等待
+	wgp := glimit.New(100)
 	for secName, mulP := range sws {
 		if err := createDirIfNotExist(secName); err != nil {
-			logrus.Fatal(err)
+			logrus.Errorln(err)
+			return
 		}
-
 		wgp.Add(len(mulP.profiles))
-
 		for _, profile := range mulP.profiles {
 			go func(sn string, pf param) {
+				defer wgp.Done()
 				if err := s.downloadFile(sn, pf); err != nil {
 					logrus.Errorln(err)
 				}
-				wgp.Done()
 			}(secName, profile)
 		}
 	}
@@ -138,14 +132,20 @@ func (s *swbka) downloadSwitchCfg(sws map[string]mulparam) {
 
 // downloadFile 从ftp下载文件
 func (s *swbka) downloadFile(secName string, profile param) error {
-	ip := profile.ip + ":21"
+	ip := profile.ip
 	retErr := func(ip string, err error) error {
-		return fmt.Errorf("%s ➨ %s", ip, err)
+		return fmt.Errorf("address:%s reason:%s", ip, err.Error())
 	}
 	c, err := ftp.Dial(ip, ftp.DialWithTimeout(6*time.Second))
 	if err != nil {
 		return retErr(ip, err)
 	}
+	defer func() {
+		if err := c.Quit(); err != nil {
+			logrus.Errorf("ftp client quit failed: %v address: %s\n", err, ip)
+		}
+	}()
+
 	// login ftp server
 	err = c.Login(profile.username, profile.password)
 	if err != nil {
@@ -164,27 +164,35 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 			return retErr(ip, err)
 		}
 		now := time.Now().Format(timeFormat)
-		filename := secName + "/" + profile.ip + "_" + now + "_" + fname
-		err = s.saveFile(buf, filename)
+		filename := joinPath(secName, strings.Replace(profile.ip, ":", "_", -1)+"_"+fname)
+		err = s.saveFile(buf, filename, now, secName)
 		if err != nil {
 			return retErr(ip, err)
 		}
 	}
-	if err := c.Quit(); err != nil {
-		return retErr(ip, err)
-	}
 	return nil
 }
 
-func (s *swbka) saveFile(data []byte, filename string) error {
+func (s *swbka) saveFile(data []byte,
+	filename string, atTime string, secName string) error {
+	if len(data) == 0 {
+		return errors.New("data is emtpy")
+	}
 	hash := checkSum(data)
 	if hash == "" {
 		return fmt.Errorf("failed to hash: %s\n", filename)
 	}
-	if fname, ok := s.sumMap[hash]; ok {
+	if fname, ok := s.sumMap.Load(hash); ok {
 		return fmt.Errorf("cfg is not changed: %s\n", fname)
 	}
 	if err := ioutil.WriteFile(filename, data, 0644); err != nil {
+		return err
+	}
+
+	if err := s.pushConfig2Webdav(
+		data,
+		joinPath("networkDeviceCFG",
+			atTime, filename)); err != nil {
 		return err
 	}
 	// append filename md5 to cfg.sum
@@ -216,7 +224,8 @@ func (s *swbka) readSumFile() error {
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), " ")
 		if len(line) == 2 {
-			s.sumMap[line[1]] = line[0]
+			// s.sumMap[line[1]] = line[0]
+			s.sumMap.Store(line[1], line[0])
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -225,30 +234,20 @@ func (s *swbka) readSumFile() error {
 	return nil
 }
 
-// checkSum 获取一段文本内容的hash值
-func checkSum(content []byte) string {
-	sha := md5.New()
-	_, err := sha.Write(content)
-	if err != nil {
-		return ""
-	}
-	return hex.EncodeToString(sha.Sum(nil))
-}
-
 func main() {
-	start := time.Now()
+	flag.Parse()
 	swb := &swbka{
 		sumFile: "./cfg.sum",
-		sumMap:  make(map[string]string),
+		sumMap:  sync.Map{},
+		wd:      gowebdav.NewClient(*webdavURI, *webdavUSER, *webdavPWD),
 	}
 	err := swb.readSumFile()
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	ret, err := swb.readConfig("./profile.ini")
+	ret, err := swb.readConfig(*configPath)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 	swb.downloadSwitchCfg(ret)
-	fmt.Printf("time count: %ds\n", time.Now().Second()-start.Second())
 }

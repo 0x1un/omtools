@@ -1,0 +1,6 @@
+[Unit]
+Description=swbka service
+
+[Service]
+WorkingDirectory=/opt/swbka
+ExecStart=/opt/swbka/bin/swbka -c /opt/swbka/profile.ini
