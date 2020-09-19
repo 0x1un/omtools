@@ -29,3 +29,7 @@ func checkSum(content []byte) string {
 func joinPath(args ...string) string {
 	return strings.Join(args, "/")
 }
+
+func joinString(sep string, args ...string) string {
+	return strings.Join(args, sep)
+}

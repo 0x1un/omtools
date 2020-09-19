@@ -1,3 +1,8 @@
+/*
+这个程序的目的是为了备份交换机的配置文件，使用ftp来下载交换机上的配置文件。
+Create date: 2020-09-19
+Author: 0x1un
+*/
 package main
 
 import (
@@ -33,10 +38,11 @@ var (
 )
 
 type param struct {
-	ip       string
-	username string
-	password string
-	target   []string
+	ip         string
+	username   string
+	password   string
+	target     []string
+	deviceName string
 }
 
 type mulparam struct {
@@ -46,9 +52,8 @@ type mulparam struct {
 // swbka: 入口结构
 type swbka struct {
 	sumFile string
-	// sumMap  map[string]string
-	sumMap sync.Map
-	wd     *gowebdav.Client
+	sumMap  sync.Map
+	wd      *gowebdav.Client
 }
 
 func (s *swbka) pushConfig2Webdav(buf []byte, path string) error {
@@ -80,12 +85,13 @@ func (*swbka) readConfig(path string) (map[string]mulparam, error) {
 		m := mulparam{}
 		for ip, loginStr := range v.KeysHash() {
 			strList := strings.Split(loginStr, ",")
-			if len(strList) == 3 {
+			if len(strList) == 4 {
 				m.profiles = append(m.profiles, param{
-					ip:       ip + pubPort,
-					username: strList[0],
-					password: strList[1],
-					target:   []string{strList[2]},
+					ip:         ip + pubPort,
+					username:   strList[0],
+					password:   strList[1],
+					target:     []string{strList[2]},
+					deviceName: strList[3],
 				})
 			} else {
 				m.profiles = append(m.profiles, param{
@@ -102,7 +108,7 @@ func (*swbka) readConfig(path string) (map[string]mulparam, error) {
 }
 
 // downloadFileMock 模拟下载 测试使用
-func (s *swbka) downloadFileMock(sn string, p param) error {
+func (s *swbka) downloadFileMock(p param) error {
 	fmt.Println(p.ip)
 	time.Sleep(2 * time.Second)
 	return nil
@@ -157,15 +163,17 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 		if err != nil {
 			continue
 		}
-		defer r.Close()
-
+		if err := r.Close(); err != nil {
+			logrus.Errorln(err.Error())
+		}
 		buf, err := ioutil.ReadAll(r)
 		if err != nil {
 			return retErr(ip, err)
 		}
 		now := time.Now().Format(timeFormat)
-		filename := joinPath(secName, strings.Replace(profile.ip, ":", "_", -1)+"_"+fname)
-		err = s.saveFile(buf, filename, now, secName)
+		//filename := joinPath(secName, profile.deviceName+"_"+strings.Replace(profile.ip, ":", "_", -1)+"_"+fname)
+		filename := joinString("/", secName, joinString("_", profile.deviceName, strings.Replace(profile.ip, ":", "_", -1), fname))
+		err = s.saveFile(buf, filename, now)
 		if err != nil {
 			return retErr(ip, err)
 		}
@@ -174,9 +182,9 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 }
 
 func (s *swbka) saveFile(data []byte,
-	filename string, atTime string, secName string) error {
+	filename string, atTime string) error {
 	if len(data) == 0 {
-		return errors.New("data is emtpy")
+		return errors.New("data is empty")
 	}
 	hash := checkSum(data)
 	if hash == "" {
@@ -200,7 +208,11 @@ func (s *swbka) saveFile(data []byte,
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logrus.Errorln(err.Error())
+		}
+	}()
 	_, err = file.WriteString(fmt.Sprintf("%s %s\n", filename, hash))
 	if err != nil {
 		return err
@@ -219,7 +231,11 @@ func (s *swbka) readSumFile() error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logrus.Errorln(err)
+		}
+	}()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), " ")
