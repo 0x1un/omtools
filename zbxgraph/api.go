@@ -41,11 +41,11 @@ func (z *zbxGraph) ListGroup(key string) (map[string]string, error) {
 	params := zabbix.HostgroupGetParams{}
 	hostgroups, err := z.session.GetHostgroups(params)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting Hostgroups: %v", err)
+		return nil, fmt.Errorf("error getting Hostgroups: %v", err)
 	}
 
 	if len(hostgroups) == 0 {
-		return nil, fmt.Errorf("No Hostgroups found")
+		return nil, fmt.Errorf("no Hostgroups found")
 	}
 	groupMap := make(map[string]string)
 	for _, hostgroup := range hostgroups {

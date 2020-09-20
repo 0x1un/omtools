@@ -89,7 +89,12 @@ func (c *session) DownloadTrafficGraph(graphid, from, to string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// 是否关闭并不重要，输出错误即可
+			logrus.Errorln(err.Error())
+		}
+	}()
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -131,7 +136,12 @@ func (c *session) Login() error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// 是否关闭并不重要，输出错误即可
+			logrus.Errorln(err)
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to login zbx: %d\n", resp.StatusCode)
 	}
