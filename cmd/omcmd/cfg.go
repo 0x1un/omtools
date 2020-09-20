@@ -9,6 +9,7 @@ import (
 
 func expAnyHosts(filename, _ string) {
 
+	// 获取文件的后缀
 	fileExt := path.Ext(filename)
 	err := zbx.ExportAnyHosts(filename, func(s string) string {
 		switch s {
@@ -25,7 +26,7 @@ func expAnyHosts(filename, _ string) {
 }
 
 func cfgcmd(cmd *cobra.Command, args []string) {
-
+	_ = args
 	argName, _ := cmd.Flags().GetString("export")
 	if argName == "" {
 		if err := cmd.Help(); err != nil {
