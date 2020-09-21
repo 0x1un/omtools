@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+func removeSpace(s []string) []string {
+	re := []string{}
+	for _, v := range s {
+		if strings.TrimSpace(v) != "" {
+			re = append(re, v)
+		}
+	}
+	return re
+}
+
 func createDirIfNotExist(dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.Mkdir(dir, 0644); err != nil {

@@ -20,7 +20,6 @@ import (
 	"github.com/jlaffaye/ftp"
 	"github.com/sirupsen/logrus"
 	"github.com/studio-b12/gowebdav"
-	"gopkg.in/ini.v1"
 )
 
 // 通用变量初始化
@@ -60,52 +59,6 @@ func (s *swbka) pushConfig2Webdav(buf []byte, path string) error {
 	return s.wd.Write(path, buf, 0644)
 }
 
-// readConfig 读取配置文件
-func (*swbka) readConfig(path string) (map[string]mulparam, error) {
-	mp := make(map[string]mulparam)
-	cfg, err := ini.LoadSources(
-		ini.LoadOptions{SkipUnrecognizableLines: true,
-			IgnoreInlineComment: true},
-		path)
-	if err != nil {
-		return nil, err
-	}
-	pubUser := cfg.Section("general").Key("pub_user").String()
-	pubPass := cfg.Section("general").Key("pub_pass").String()
-	pubTarget := cfg.Section("general").Key("pub_target").String()
-	pubPort := cfg.Section("general").Key("pub_port").String()
-	if pubTarget == "" {
-		pubTarget = "startup.cfg"
-	}
-	for _, v := range cfg.Sections() {
-		name := v.Name()
-		if name == "general" || name == "DEFAULT" {
-			continue
-		}
-		m := mulparam{}
-		for ip, loginStr := range v.KeysHash() {
-			strList := strings.Split(loginStr, ",")
-			if len(strList) == 4 {
-				m.profiles = append(m.profiles, param{
-					ip:         ip + pubPort,
-					username:   strList[0],
-					password:   strList[1],
-					target:     []string{strList[2]},
-					deviceName: strList[3],
-				})
-			} else {
-				m.profiles = append(m.profiles, param{
-					ip:       ip + pubPort,
-					username: pubUser,
-					password: pubPass,
-					target:   strings.Split(pubTarget, ","),
-				})
-			}
-		}
-		mp[name] = m
-	}
-	return mp, nil
-}
 
 // downloadFileMock 模拟下载 测试使用
 func (s *swbka) downloadFileMock(p param) error {
@@ -151,31 +104,31 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 			logrus.Errorf("ftp client quit failed: %v address: %s\n", err, ip)
 		}
 	}()
-
 	// login ftp server
 	err = c.Login(profile.username, profile.password)
 	if err != nil {
 		return retErr(ip, err)
 	}
 	// retrieve file content
-	for _, fname := range profile.target {
-		r, err := c.Retr(fname)
+	for _, fName := range profile.target {
+		r, err := c.Retr(fName)
 		if err != nil {
 			continue
-		}
-		if err := r.Close(); err != nil {
-			logrus.Errorln(err.Error())
 		}
 		buf, err := ioutil.ReadAll(r)
 		if err != nil {
 			return retErr(ip, err)
 		}
 		now := time.Now().Format(timeFormat)
-		//filename := joinPath(secName, profile.deviceName+"_"+strings.Replace(profile.ip, ":", "_", -1)+"_"+fname)
-		filename := joinString("/", secName, joinString("_", profile.deviceName, strings.Replace(profile.ip, ":", "_", -1), fname))
+		filename := joinString("/", secName, joinString("_", profile.deviceName, strings.Replace(profile.ip, ":", "_", -1), fName))
 		err = s.saveFile(buf, filename, now)
 		if err != nil {
 			return retErr(ip, err)
+		}
+		if err := r.Close(); err != nil {
+			if strings.Contains(err.Error(), "Entering Passive Mode") {
+				logrus.Info("no such file: "+fName + " at " + profile.ip)
+			}
 		}
 	}
 	return nil
@@ -186,23 +139,24 @@ func (s *swbka) saveFile(data []byte,
 	if len(data) == 0 {
 		return errors.New("data is empty")
 	}
-	hash := checkSum(data)
-	if hash == "" {
-		return fmt.Errorf("failed to hash: %s\n", filename)
-	}
-	if fname, ok := s.sumMap.Load(hash); ok {
-		return fmt.Errorf("cfg is not changed: %s\n", fname)
-	}
-	if err := ioutil.WriteFile(filename, data, 0644); err != nil {
-		return err
-	}
-
+	// 无论是否有改动，都将推送至云盘
 	if err := s.pushConfig2Webdav(
 		data,
 		joinPath("networkDeviceCFG",
 			atTime, filename)); err != nil {
 		return err
 	}
+	hash := checkSum(data)
+	if hash == "" {
+		return fmt.Errorf("failed to hash: %s\n", filename)
+	}
+	if fName, ok := s.sumMap.Load(hash); ok {
+		return fmt.Errorf("cfg is not changed: %s\n", fName)
+	}
+	if err := ioutil.WriteFile(filename, data, 0644); err != nil {
+		return err
+	}
+
 	// append filename md5 to cfg.sum
 	file, err := os.OpenFile(s.sumFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -240,7 +194,6 @@ func (s *swbka) readSumFile() error {
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), " ")
 		if len(line) == 2 {
-			// s.sumMap[line[1]] = line[0]
 			s.sumMap.Store(line[1], line[0])
 		}
 	}
