@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/0x1un/boxes/chatbot"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -24,10 +25,7 @@ import (
 
 // 通用变量初始化
 var (
-	timeFormat = "20060102_15_04"
-	webdavURI  = flag.String("webdavuri", "http://10.100.100.242/dav", "webdav uri")
-	webdavUSER = flag.String("webdavuser", "swbka@public.com", "webdav username")
-	webdavPWD  = flag.String("webdavpass", "G9apckB4rcApHxEEhIr72dKJg7jd1PPf", "webdav password")
+	dateFormat = "2006-01-02--15_04_05"
 	configPath = flag.String("c", "/etc/swbka/profile.ini", "config file location")
 )
 
@@ -44,21 +42,45 @@ type param struct {
 	deviceName string
 }
 
+type general struct {
+	dingNotifyAll bool
+	smtpPort      int
+	projectName   string
+	pubUser       string
+	pubPass       string
+	pubPort       string
+	webdavURL     string
+	webdavUSER    string
+	webdavPWD     string
+	profilePATH   string
+	smtpServer    string
+	smtpUSER      string
+	smtpPWD       string
+	smtpFROM      string
+	smtpTO        []string
+	pubTarget     []string
+	dingTokens    []string
+	dingAtUsers   []string
+}
+
 type mulparam struct {
 	profiles []param
 }
 
 // swbka: 入口结构
 type swbka struct {
-	sumFile string
-	sumMap  sync.Map
-	wd      *gowebdav.Client
+	sumFile    string
+	sumMap     sync.Map
+	wd         *gowebdav.Client
+	defaultCFG general
+	failed     []error
+	total      int
+	davData    sync.Map
 }
 
 func (s *swbka) pushConfig2Webdav(buf []byte, path string) error {
 	return s.wd.Write(path, buf, 0644)
 }
-
 
 // downloadFileMock 模拟下载 测试使用
 func (s *swbka) downloadFileMock(p param) error {
@@ -71,6 +93,7 @@ func (s *swbka) downloadFileMock(p param) error {
 func (s *swbka) downloadSwitchCfg(sws map[string]mulparam) {
 	// 最多同时允许100台配置的下载, 超过100台使其等待
 	wgp := glimit.New(100)
+	lock := sync.Mutex{}
 	for secName, mulP := range sws {
 		if err := createDirIfNotExist(secName); err != nil {
 			logrus.Errorln(err)
@@ -81,7 +104,11 @@ func (s *swbka) downloadSwitchCfg(sws map[string]mulparam) {
 			go func(sn string, pf param) {
 				defer wgp.Done()
 				if err := s.downloadFile(sn, pf); err != nil {
-					logrus.Errorln(err)
+					if er := err.Error(); !strings.Contains(er, "not changed") {
+						lock.Lock()
+						s.failed = append(s.failed, err)
+						defer lock.Unlock()
+					}
 				}
 			}(secName, profile)
 		}
@@ -93,7 +120,7 @@ func (s *swbka) downloadSwitchCfg(sws map[string]mulparam) {
 func (s *swbka) downloadFile(secName string, profile param) error {
 	ip := profile.ip
 	retErr := func(ip string, err error) error {
-		return fmt.Errorf("address:%s reason:%s", ip, err.Error())
+		return fmt.Errorf("address: %s reason: %s", ip, err.Error())
 	}
 	c, err := ftp.Dial(ip, ftp.DialWithTimeout(6*time.Second))
 	if err != nil {
@@ -119,15 +146,24 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 		if err != nil {
 			return retErr(ip, err)
 		}
-		now := time.Now().Format(timeFormat)
-		filename := joinString("/", secName, joinString("_", profile.deviceName, strings.Replace(profile.ip, ":", "_", -1), fName))
-		err = s.saveFile(buf, filename, now)
+		filename := joinString("/",
+			secName,
+			joinString("-",
+				profile.deviceName,
+				strings.Replace(profile.ip,
+					":",
+					"-",
+					-1),
+				fName))
+		// 存储配置数据
+		s.davData.Store(filename, buf)
+		err = s.saveFile(buf, filename)
 		if err != nil {
 			return retErr(ip, err)
 		}
 		if err := r.Close(); err != nil {
 			if strings.Contains(err.Error(), "Entering Passive Mode") {
-				logrus.Info("no such file: "+fName + " at " + profile.ip)
+				logrus.Info("no such file: " + fName + " at " + profile.ip)
 			}
 		}
 	}
@@ -135,16 +171,9 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 }
 
 func (s *swbka) saveFile(data []byte,
-	filename string, atTime string) error {
+	filename string) error {
 	if len(data) == 0 {
 		return errors.New("data is empty")
-	}
-	// 无论是否有改动，都将推送至云盘
-	if err := s.pushConfig2Webdav(
-		data,
-		joinPath("networkDeviceCFG",
-			atTime, filename)); err != nil {
-		return err
 	}
 	hash := checkSum(data)
 	if hash == "" {
@@ -208,7 +237,6 @@ func main() {
 	swb := &swbka{
 		sumFile: "./cfg.sum",
 		sumMap:  sync.Map{},
-		wd:      gowebdav.NewClient(*webdavURI, *webdavUSER, *webdavPWD),
 	}
 	err := swb.readSumFile()
 	if err != nil {
@@ -218,5 +246,65 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	swb.wd = gowebdav.NewClient(swb.defaultCFG.webdavURL, swb.defaultCFG.webdavUSER, swb.defaultCFG.webdavPWD)
 	swb.downloadSwitchCfg(ret)
+	filesBuffer := files{}
+	now := time.Now()
+	nowTime := now.Format(dateFormat)
+	swb.davData.Range(func(filename, data interface{}) bool {
+		filePath := strings.Split(filename.(string), "/")
+		fileSection := func(a []string) string {
+			if len(a) >= 2 {
+				return a[0]
+			}
+			return ""
+		}(filePath)
+		cfgName := func(a []string) string {
+			if len(a) >= 2 {
+				return a[1]
+			}
+			return ""
+		}(filePath)
+
+		err := swb.pushConfig2Webdav(data.([]byte), joinString("/", "/networkDeviceCFG", swb.defaultCFG.projectName, fileSection, nowTime, cfgName))
+		if err != nil {
+			swb.failed = append(swb.failed, err)
+		}
+		filesBuffer = append(filesBuffer, file{
+			filename: filename.(string),
+			fileData: data.([]byte),
+		})
+		return true
+	})
+	zipDirectory := "./zip_packages/"
+	if _, err := os.Stat(zipDirectory); os.IsNotExist(err) {
+		if err := os.Mkdir(zipDirectory, 0644); err != nil {
+			logrus.Fatal(err)
+		}
+	}
+	attachFile := zipDirectory + swb.defaultCFG.projectName + "_" + nowTime + ".zip"
+	if err := filesBuffer.zip(attachFile); err != nil {
+		logrus.Fatal(err)
+	}
+	strBuffer := strings.Builder{}
+	var botSendContent string
+	if failedLen := len(swb.failed); failedLen != 0 {
+		for _, er := range swb.failed {
+			strBuffer.WriteString(er.Error() + "\n\n\n")
+		}
+		botSendContent = fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: 完成 <font color=#ff0000>%d/%d</font>\n\n但出现过错误，如下：\n\n<font color=#ff0000>%s</font>\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total-failedLen, swb.total, strBuffer.String())
+	} else {
+		botSendContent = fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: <font color=#00ffff>%d/%d</font>\n\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total, swb.total)
+	}
+
+	chatbot.Send(
+		swb.defaultCFG.dingTokens,
+		swb.defaultCFG.dingAtUsers,
+		swb.defaultCFG.dingNotifyAll,
+		botSendContent, "backup message:")
+	sender := NewSMTPSender(swb.defaultCFG.smtpServer, swb.defaultCFG.smtpPort, swb.defaultCFG.smtpUSER, swb.defaultCFG.smtpPWD)
+	msg := sender.writeMessage(botSendContent, swb.defaultCFG.smtpFROM, attachFile, swb.defaultCFG.projectName+" 配置存档", swb.defaultCFG.smtpTO...)
+	if err := sender.SendToMail(msg); err != nil {
+		logrus.Fatal(err)
+	}
 }
