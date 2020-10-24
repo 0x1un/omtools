@@ -7,6 +7,7 @@ install: swbka profile.ini services/swbka.timer services/swbka.service
 	install -m 644 services/swbka.service /usr/lib/systemd/system/
 	systemctl daemon-reload
 	systemctl enable --now swbka.timer swbka.service
+
 build:
 	go build -ldflags "-w -s"
 
