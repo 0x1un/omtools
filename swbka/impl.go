@@ -233,8 +233,8 @@ func (s *swbka) readSumFile() error {
 	return nil
 }
 
-// impl 具体调用的入口功能
-func impl() {
+// Impl 具体调用的入口功能
+func Impl() error {
 	// 解析命令行参数
 	flag.Parse()
 	swb := &swbka{
@@ -243,11 +243,11 @@ func impl() {
 	}
 	err := swb.readSumFile()
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	ret, err := swb.readConfig(*configPath)
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	// 初始化webdav客户端，并进行配置文件下载
 	swb.wd = gowebdav.NewClient(swb.defaultCFG.webdavURL, swb.defaultCFG.webdavUSER, swb.defaultCFG.webdavPWD)
@@ -285,12 +285,12 @@ func impl() {
 	zipDirectory := "./zip_packages/"
 	if _, err := os.Stat(zipDirectory); os.IsNotExist(err) {
 		if err := os.Mkdir(zipDirectory, 0644); err != nil {
-			logrus.Fatal(err)
+			return err
 		}
 	}
 	attachFile := zipDirectory + swb.defaultCFG.projectName + "_" + nowTime + ".zip"
 	if err := filesBuffer.zip(attachFile); err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	// 写入提示信息
 	strBuffer := strings.Builder{}
@@ -299,12 +299,12 @@ func impl() {
 		for _, er := range swb.failed {
 			strBuffer.WriteString(er.Error() + "\n\n\n")
 		}
-		botSendContent = fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: 完成 <font color=#ff0000>%d/%d</font>\n\n但出现过错误，如下：\n\n<font color=#ff0000>%s</font>\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total-failedLen, swb.total, strBuffer.String())
+		botSendContent =  fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份进度: <font color=#ff0000>%d/%d</font>\n\n但出现过错误，如下：\n\n<font color=#ff0000>%s</font>\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total-failedLen, swb.total, strBuffer.String())
 	} else {
-		botSendContent = fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: <font color=#00ffff>%d/%d</font>\n\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total, swb.total)
+		botSendContent =  fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: <font color=#00ffff>%d/%d</font>\n\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total, swb.total)
 	}
 
-	botSendContent = fmt.Sprintf("%s\n\n<font color=#ff0000>本次备份总共 %d 次, 有效 %d 次</font>\n", botSendContent, swb.filesCount, downloadedCount)
+	botSendContent =  fmt.Sprintf("%s\n\n<font color=#ff0000>本次备份总共 %d 次, 有效 %d 次</font>\n", botSendContent, swb.filesCount, downloadedCount)
 
 	// 进行钉钉告警
 	chatbot.Send(
@@ -316,6 +316,7 @@ func impl() {
 	sender := NewSMTPSender(swb.defaultCFG.smtpServer, swb.defaultCFG.smtpPort, swb.defaultCFG.smtpUSER, swb.defaultCFG.smtpPWD)
 	msg := sender.writeMessage(botSendContent, swb.defaultCFG.smtpFROM, attachFile, swb.defaultCFG.projectName+" 配置存档", swb.defaultCFG.smtpTO...)
 	if err := sender.SendToMail(msg); err != nil {
-		logrus.Fatal(err)
+		return err
 	}
+	return nil
 }
