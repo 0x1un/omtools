@@ -29,6 +29,6 @@ func (p *pool) Done() {
 	p.wg.Done()
 }
 
-func(p *pool) Wait() {
+func (p *pool) Wait() {
 	p.wg.Wait()
 }

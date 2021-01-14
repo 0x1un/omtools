@@ -29,11 +29,6 @@ var (
 	configPath = flag.String("c", "/etc/swbka/profile.ini", "config file location")
 )
 
-// 错误类型初始化
-var (
-// diaWebdavErr
-)
-
 type param struct {
 	ip         string
 	username   string
@@ -146,17 +141,19 @@ func (s *swbka) downloadFile(secName string, profile param) error {
 	for _, fName := range profile.target {
 		r, err := c.Retr(fName)
 		if err != nil {
+			logrus.Errorln(err)
 			continue
 		}
 		buf, err := ioutil.ReadAll(r)
 		if err != nil {
 			return retErr(ip, err)
 		}
-		filename := joinString("/", secName, joinString("-", profile.deviceName, strings.Replace(profile.ip,
-			":",
-			"-",
-			-1),
-			fName))
+		filename := joinString("/", secName,
+			joinString("-", profile.deviceName, strings.Replace(profile.ip,
+				":",
+				"-",
+				-1),
+				fName))
 		// 存储配置数据
 		s.davData.Store(filename, buf)
 		err = s.saveFile(buf, filename)
@@ -299,12 +296,12 @@ func Impl() error {
 		for _, er := range swb.failed {
 			strBuffer.WriteString(er.Error() + "\n\n\n")
 		}
-		botSendContent =  fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份进度: <font color=#ff0000>%d/%d</font>\n\n但出现过错误，如下：\n\n<font color=#ff0000>%s</font>\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total-failedLen, swb.total, strBuffer.String())
+		botSendContent = fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份进度: <font color=#ff0000>%d/%d</font>\n\n但出现过错误，如下：\n\n<font color=#ff0000>%s</font>\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total-failedLen, swb.total, strBuffer.String())
 	} else {
-		botSendContent =  fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: <font color=#00ffff>%d/%d</font>\n\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total, swb.total)
+		botSendContent = fmt.Sprintf("<font color=#003153>%s</font>\n\n<font color=#1E90FF>[%s]</font> ➤ 本次备份: <font color=#00ffff>%d/%d</font>\n\n", now.Format(time.RFC3339), swb.defaultCFG.projectName, swb.total, swb.total)
 	}
 
-	botSendContent =  fmt.Sprintf("%s\n\n<font color=#ff0000>本次备份总共 %d 次, 有效 %d 次</font>\n", botSendContent, swb.filesCount, downloadedCount)
+	botSendContent = fmt.Sprintf("%s\n\n<font color=#ff0000>本次备份总共 %d 次, 有效 %d 次</font>\n", botSendContent, swb.filesCount, downloadedCount)
 
 	// 进行钉钉告警
 	chatbot.Send(

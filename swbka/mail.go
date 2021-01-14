@@ -31,7 +31,7 @@ func (s *SMTPConfig) SendToMail(msg *gomail.Message) error {
 	return nil
 }
 
-func (s *SMTPConfig) writeMessage(body string, from string, filename string,subject string, to ...string) *gomail.Message {
+func (s *SMTPConfig) writeMessage(body string, from string, filename string, subject string, to ...string) *gomail.Message {
 	m := gomail.NewMessage()
 	m.SetHeader("From", from)
 	m.SetHeader("To", to...)

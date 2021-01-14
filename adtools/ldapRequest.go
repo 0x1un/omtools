@@ -213,7 +213,7 @@ func (c *adConn) QueryUser(dn, filter string, scope int) (*ldap.SearchResult, er
 	return res, nil
 }
 
-// ResetPasswd to reset exsisting account password
+// ResetPasswd to reset existing account password
 func (c *adConn) ResetPasswd(uname, passwd, ouPath string) error {
 	modifyReq := ldap.NewModifyRequest(Ft("CN=%s,%s,"+BaseDN, uname, ouPath), nil)
 	modifyReq.Replace("unicodePwd", StringListWrap(EncodePwd(passwd)))

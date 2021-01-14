@@ -51,14 +51,14 @@ func (c *adConn) GetUserInfoTable(user string) (string, error) {
 		tb.AppendRow([]interface{}{
 			v.GetAttributeValue("cn"),
 			v.GetAttributeValue("sAMAccountName"),
-			parseDatetime2Humman(v.GetAttributeValue("whenCreated")),
+			parseDatetime2Human(v.GetAttributeValue("whenCreated")),
 			func(a string) string {
 				if a == "" || a == "0" {
 					return "No"
 				}
 				return "Yes"
 			}(v.GetAttributeValue("lockoutTime")),
-			parseDatetime2Humman(v.GetAttributeValue("whenChanged")),
+			parseDatetime2Human(v.GetAttributeValue("whenChanged")),
 			func(a string) string {
 				switch a {
 				case "512":
@@ -66,10 +66,10 @@ func (c *adConn) GetUserInfoTable(user string) (string, error) {
 				case "514":
 					return "禁用"
 				case "66082":
-					// Disabled, Password Doesn’t Expire & Not Required
+					// Disabled, Password does not expire & Not Required
 					return "禁用"
 				}
-				return "unkown"
+				return "unknown"
 			}(v.GetAttributeValue("userAccountControl")),
 			v.GetAttributeValue("badPwdCount"),
 			func(a string) string {
@@ -95,13 +95,13 @@ func (c *adConn) GetUserInfoTable(user string) (string, error) {
 }
 
 func convertWinNTTime2Unix(tm string) string {
-	unum, err := strconv.ParseInt(tm, 10, 64)
+	uName, err := strconv.ParseInt(tm, 10, 64)
 	if err != nil {
 		return "1970-01-01 00:00:00"
 	}
-	unum = (unum / 10000000) - 11644473600
-	tim := time.Unix(unum, 0)
-	return (tim.Format("2006-01-02 15:04:05"))
+	uName = (uName / 10000000) - 11644473600
+	tim := time.Unix(uName, 0)
+	return tim.Format("2006-01-02 15:04:05")
 }
 
 func FormatWinNTime2String(tm string) string {
@@ -113,10 +113,10 @@ func convertWinNTTime2UnixFromInt64(tm int64) time.Time {
 	return time.Unix(tm, 0)
 }
 
-func parseDatetime2Humman(tm string) string {
+func parseDatetime2Human(tm string) string {
 	t, err := time.Parse("20060102150405.0Z", tm)
 	if err != nil {
 		return ""
 	}
-	return (t.Format("2006-01-02 15:04:05"))
+	return t.Format("2006-01-02 15:04:05")
 }

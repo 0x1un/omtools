@@ -99,7 +99,7 @@ func readCSVFile(path string) (records [][]string, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed guess file charset: %s", err)
 	}
-	f.Seek(0, 0)
+	_, _ = f.Seek(0, 0)
 
 	if encodeType != "UTF-8" {
 		cd, err := iconv.Open("utf-8", "gbk")
